@@ -1,6 +1,8 @@
 import React from 'react';
 import { FileUpload } from '../components/FileUpload';
+import { uploadArchive } from '../services/archive.service';
 
+// página principal — monta o layout centralizado e renderiza o componente de upload
 export const GerenciadorArquivos: React.FC = () => {
   return (
     <div
@@ -31,6 +33,14 @@ export const GerenciadorArquivos: React.FC = () => {
         <FileUpload
           buttonText="Carregar arquivo"
           placeholderText="Arquivo.ext | 0 KB"
+          onUploadClick={async (file) => {
+            try {
+              const data = await uploadArchive(file);
+              console.log('Upload ok:', data);
+            } catch (err) {
+              console.error('Erro no upload:', err);
+            }
+          }}
         />
       </div>
     </div>

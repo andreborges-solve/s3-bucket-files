@@ -7,7 +7,8 @@ export interface FileUploadProps {
   placeholderText?: string;
   uploadButtonText?: string;
 }
-//regra tratamento de sizes
+
+// formata o tamanho do arquivo de bytes pra algo legível (KB, MB, GB, TB)
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -22,8 +23,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   placeholderText = 'Nome do arquivo.formato | Tamanho',
   uploadButtonText = 'Enviar arquivo',
 }) => {
+  // arquivo selecionado pelo usuário
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // url temporária gerada após o envio
   const [tempUrl, setTempUrl] = useState<string | null>(null);
+
+  // temporizador de 5 minutos — controla quando o link expira e some da tela
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,6 +48,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     return () => clearInterval(timerRef.current!);
   }, [expiresAt]);
 
+  // dispara o envio e gera o link temporário
   function handleEnviar() {
     if (!selectedFile) return;
     if (tempUrl) URL.revokeObjectURL(tempUrl);
@@ -53,6 +60,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     onUploadClick?.(selectedFile);
   }
 
+  // captura o arquivo quando o usuário seleciona pelo input
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
@@ -73,6 +81,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         flexWrap: 'wrap',
       }}
     >
+      {/* botão que abre o seletor de arquivo do sistema */}
       <label
         style={{
           backgroundColor: '#2e3cb4',
@@ -112,6 +121,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         />
       </label>
 
+      {/* campo que mostra o nome e tamanho do arquivo selecionado */}
       <div
         style={{
           backgroundColor: '#f9fafb',
@@ -129,6 +139,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         {displayText}
       </div>
 
+      {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
       <button
         type="button"
         onClick={handleEnviar}
@@ -148,6 +159,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         {uploadButtonText}
       </button>
 
+      {/* bloco do link temporário — aparece após o envio e some quando o link expira */}
       {tempUrl && (
         <div
           style={{
@@ -167,9 +179,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           <span style={{ fontSize: '13px', color: '#475467', flex: 1, wordBreak: 'break-all' }}>
             {tempUrl}
           </span>
-          <span style={{ fontSize: '12px', color: '#f79009', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            Expira em {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
-          </span>
+
+          {/* botão que abre o arquivo numa nova aba */}
           <button
             type="button"
             onClick={() => window.open(tempUrl, '_blank')}
