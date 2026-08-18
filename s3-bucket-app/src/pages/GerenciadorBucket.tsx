@@ -1,6 +1,5 @@
 import React from 'react';
 import { FileUpload } from '../components/FileUpload';
-import { FileTable } from '../components/FileTable';
 
 export const GerenciadorArquivos: React.FC = () => {
   return (
@@ -29,14 +28,9 @@ export const GerenciadorArquivos: React.FC = () => {
           gap: '24px',
         }}
       >
-        <FileUpload 
-          buttonText="Escolher arquivo" 
-          placeholderText="Arquivo.ext | 0 KB" 
-        />
-
-        <FileTable 
-          title="Meus Arquivos" 
-          downloadButtonText="Donwload" 
+        <FileUpload
+          buttonText="Carregar arquivo"
+          placeholderText="Arquivo.ext | 0 KB"
         />
       </div>
     </div>

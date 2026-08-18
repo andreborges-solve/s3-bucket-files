@@ -1,27 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
 export interface FileUploadProps {
-  onFileChange?: (e: ChangeEvent<HTMLInputElement>) => void;
-  onUploadClick?: () => void;
-  fileName?: string;
-  fileSize?: string;
+  onUploadClick?: (file: File) => void;
   buttonText?: string;
   placeholderText?: string;
   uploadButtonText?: string;
 }
+//regra tratamento de sizes
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  if (bytes < 1024 ** 4) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  return `${(bytes / 1024 ** 4).toFixed(1)} TB`;
+}
 
 export const FileUpload: React.FC<FileUploadProps> = ({
-  onFileChange,
   onUploadClick,
-  fileName,
-  fileSize,
   buttonText = 'Selecione o arquivo',
-  placeholderText = 'Nome do arquivo.formato | tamanho',
+  placeholderText = 'Nome do arquivo.formato | Tamanho',
   uploadButtonText = 'Enviar arquivo',
 }) => {
-  const displayText =
-    fileName && fileSize ? `${fileName} | ${fileSize}` : placeholderText;
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [tempUrl, setTempUrl] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    timerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(timerRef.current!);
+        setTempUrl(null);
+        setExpiresAt(null);
+      }
+    }, 1000);
+    return () => clearInterval(timerRef.current!);
+  }, [expiresAt]);
+
+  function handleEnviar() {
+    if (!selectedFile) return;
+    if (tempUrl) URL.revokeObjectURL(tempUrl);
+    const url = URL.createObjectURL(selectedFile);
+    const expiry = Date.now() + 5 * 60 * 1000;
+    setTempUrl(url);
+    setExpiresAt(expiry);
+    setTimeLeft(300);
+    onUploadClick?.(selectedFile);
+  }
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+  }
+
+  const displayText = selectedFile
+    ? `${selectedFile.name} | ${formatFileSize(selectedFile.size)}`
+    : placeholderText;
 
   return (
     <div
@@ -31,6 +70,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         justifyContent: 'center',
         gap: '12px',
         width: '100%',
+        flexWrap: 'wrap',
       }}
     >
       <label
@@ -47,6 +87,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           alignItems: 'center',
           gap: '8px',
           boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+          whiteSpace: 'nowrap',
         }}
       >
         <svg
@@ -67,7 +108,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         <input
           type="file"
           style={{ display: 'none' }}
-          onChange={onFileChange}
+          onChange={handleFileChange}
         />
       </label>
 
@@ -80,7 +121,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           padding: '10px 20px',
           borderRadius: '8px',
           border: '1px solid #eaecf0',
-          minWidth: '320px',
+          minWidth: '260px',
           textAlign: 'center',
           boxSizing: 'border-box',
         }}
@@ -90,20 +131,64 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       <button
         type="button"
-        onClick={onUploadClick}
+        onClick={handleEnviar}
+        disabled={!selectedFile}
         style={{
-          backgroundColor: '#2e3cb4',
+          backgroundColor: selectedFile ? '#2e3cb4' : '#d0d5dd',
           color: '#ffffff',
-          border: '1px solid #2e3cb4',
+          border: 'none',
           fontSize: '14px',
           fontWeight: 600,
           padding: '10px 20px',
           borderRadius: '8px',
-          cursor: 'pointer',
+          cursor: selectedFile ? 'pointer' : 'not-allowed',
+          whiteSpace: 'nowrap',
         }}
       >
         {uploadButtonText}
       </button>
+
+      {tempUrl && (
+        <div
+          style={{
+            width: '100%',
+            marginTop: '16px',
+            backgroundColor: '#f9fafb',
+            border: '1px solid #eaecf0',
+            borderRadius: '8px',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+            boxSizing: 'border-box',
+          }}
+        >
+          <span style={{ fontSize: '13px', color: '#475467', flex: 1, wordBreak: 'break-all' }}>
+            {tempUrl}
+          </span>
+          <span style={{ fontSize: '12px', color: '#f79009', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            Expira em {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+          </span>
+          <button
+            type="button"
+            onClick={() => window.open(tempUrl, '_blank')}
+            style={{
+              backgroundColor: '#2e3cb4',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 600,
+              padding: '8px 16px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Visualizar
+          </button>
+        </div>
+      )}
     </div>
   );
 };
