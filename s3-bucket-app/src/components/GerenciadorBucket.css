@@ -1,0 +1,148 @@
+/* Card Container da Tabela */
+.table-card {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  overflow: hidden;
+}
+
+/* Cabeçalho do Card */
+.table-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.table-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #101828;
+}
+
+.table-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  color: #344054;
+  border: 1px solid #d0d5dd;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #f9fafb;
+}
+
+.btn-primary {
+  background-color: #000642;
+  color: #ffffff;
+  border: 1px solid #000642;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #000642;
+}
+
+/* Estrutura da Tabela */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.custom-table th {
+  background-color: #f9fafb;
+  padding: 12px 24px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475467;
+  border-bottom: 1px solid #eaecf0;
+  letter-spacing: 0.02em;
+}
+
+.custom-table td {
+  padding: 16px 24px;
+  font-size: 14px;
+  color: #475467;
+  border-bottom: 1px solid #eaecf0;
+  vertical-align: middle;
+}
+
+.custom-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Célula de Nome com Ícone */
+.file-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon-placeholder {
+  width: 40px;
+  height: 40px;
+  background-color: #f2f4f7;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #344054;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.file-name-text {
+  font-weight: 500;
+  color: #101828;
+}
+
+.file-address-text {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #667085;
+}
+
+/* Badge para Formato */
+.format-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #f2f4f7;
+  color: #344054;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
