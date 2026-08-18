@@ -37,6 +37,7 @@ export const GerenciadorArquivos: React.FC = () => {
             try {
               const data = await uploadArchive(file);
               console.log('Upload ok:', data);
+              return data.url;
             } catch (err) {
               console.error('Erro no upload:', err);
             }

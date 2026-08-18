@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 
@@ -30,11 +31,36 @@ export const postArchive = async (req: Request, res: Response) => {
     path: filePath,
   });
 
-  // quando integrar com S3, substituir filePath pela presigned URL retornada pelo SDK
+  // quando integrar com S3, substituir pela presigned URL retornada pelo SDK
   res.status(200).json({
     message: 'Arquivo salvo com sucesso',
-    url: filePath,
+    url: `http://localhost:3000/api/upload/${file.originalname}`,
     name: file.originalname,
     size: file.size,
   });
+};
+
+//post para visualização
+export const getArchive = async (req: Request, res: Response) => {
+  const { name } = req.params;
+  // verifica se o nome do arquivo foi fornecido
+  if (!name) {
+    res.status(400).json({ message: 'Nome do arquivo não fornecido' });
+    return;
+  }
+  const filePath = path.join(pastas3, name);
+  // ver se o arquivo existe antes de retornar
+  if (!fs.existsSync(filePath)) {
+    res.status(404).json({ message: 'Arquivo não encontrado' });
+    return;
+  }
+
+  // print no terminal quando o arquivo for acessado
+  console.log({
+    name,
+    size: fs.statSync(filePath).size,
+    getDate: new Date().toLocaleString('pt-BR'),
+  });
+
+  res.sendFile(filePath);
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
 export interface FileUploadProps {
-  onUploadClick?: (file: File) => void;
+  onUploadClick?: (file: File) => Promise<string> | void;
   buttonText?: string;
   placeholderText?: string;
   uploadButtonText?: string;
@@ -48,16 +48,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     return () => clearInterval(timerRef.current!);
   }, [expiresAt]);
 
-  // dispara o envio e gera o link temporário
-  function handleEnviar() {
+  // dispara o envio, usa a URL retornada pelo back se disponível, senão usa local
+  async function handleEnviar() {
     if (!selectedFile) return;
     if (tempUrl) URL.revokeObjectURL(tempUrl);
-    const url = URL.createObjectURL(selectedFile);
+
+    let url = URL.createObjectURL(selectedFile);
+    if (onUploadClick) {
+      const backUrl = await onUploadClick(selectedFile);
+      if (backUrl) url = backUrl;
+    }
+
     const expiry = Date.now() + 5 * 60 * 1000;
     setTempUrl(url);
     setExpiresAt(expiry);
     setTimeLeft(300);
-    onUploadClick?.(selectedFile);
   }
 
   // captura o arquivo quando o usuário seleciona pelo input
