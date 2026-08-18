@@ -1,75 +1,52 @@
-# React + TypeScript + Vite
+# s3-bucket-app
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend da aplicação de upload de arquivos para o bucket S3.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## O que faz
 
-## React Compiler
+- Seleciona um arquivo do computador e exibe nome e tamanho (B, KB, MB, GB, TB)
+- Botão "Enviar arquivo" fica desabilitado até um arquivo ser selecionado
+- Ao enviar, chama o back em `POST /api/upload` e recebe o link temporário
+- Exibe o link e o botão "Visualizar" que abre o arquivo numa nova aba
+- O link some da tela automaticamente após 5 minutos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Como rodar
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Acesse em `http://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+> O backend precisa estar rodando em `http://localhost:3000` para o upload funcionar.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+---
 
+## Estrutura relevante
+
+```
+src/
+├── components/
+│   └── FileUpload.tsx       → componente principal de upload
+├── pages/
+│   └── GerenciadorBucket.tsx → página que monta o layout e conecta com o service
+├── services/
+│   └── archive.service.ts   → chamada HTTP pro backend (POST /api/upload)
+└── types/
+    └── file.ts              → tipos compartilhados
+```
+
+---
+
+## Conectando com o backend
+
+O service em `archive.service.ts` aponta pra `http://localhost:3000/api`. Quando for pra produção, troca essa URL pela do servidor.
+
+```ts
+const API_URL = 'http://localhost:3000/api';
 ```
