@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  s3-buckets:
+    image: minio/minio:latest
+    container_name: s3-buckets
+    ports:
+      - "9000:9000" # porta de acesso
+      - "9001:9001" # gerenciador do bucket na web
+    environment:
+      MINIO_ROOT_USER: solve4me
+      MINIO_ROOT_PASSWORD: solve4me
+    volumes:
+      - minio_data:/data # mantém os arquivos salvos mesmo após parar o conteiner
+    command: server /data --console-address ":9001"
+
+volumes:
+  minio_data:
