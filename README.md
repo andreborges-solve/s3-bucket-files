@@ -113,13 +113,11 @@ AWS_ACCESS_KEY_ID=sua_access_key
 AWS_SECRET_ACCESS_KEY=sua_secret_key
 AWS_REGION=us-east-1
 S3_BUCKET_NAME=nome-do-seu-bucket
-PRESIGNED_URL_EXPIRES_IN=300
 ```
 
 - `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` — credenciais do usuário IAM com permissão no S3
 - `AWS_REGION` — região onde o bucket foi criado (ex: `us-east-1`, `sa-east-1`)
 - `S3_BUCKET_NAME` — nome exato do bucket
-- `PRESIGNED_URL_EXPIRES_IN` — tempo em segundos que o link vai durar (300 = 5 minutos)
 
 ---
 
