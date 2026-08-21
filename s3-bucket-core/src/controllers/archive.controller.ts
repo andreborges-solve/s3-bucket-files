@@ -1,9 +1,8 @@
-import path from 'path';
-import fs from 'fs';
 import multer from 'multer';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -16,12 +15,15 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
+const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300');
 
 // memoryStorage para ter acesso ao file.buffer e enviar pro S3
 export const upload = multer({ storage: multer.memoryStorage() });
 
-export const postArchive = async (req: Request, res: Response) => {
+// recebe o arquivo, envia pro bucket e retorna a presigned URL
+export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
   const file = req.file;
+  const usuarioLogado = req.user;
 
   if (!file) {
     res.status(400).json({ message: 'Nenhum arquivo enviado' });
@@ -29,32 +31,32 @@ export const postArchive = async (req: Request, res: Response) => {
   }
 
   try {
-    // envia o arquivo pro bucket
-    const uploadCommand = new PutObjectCommand({
+    await s3Client.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: file.originalname,
       Body: file.buffer,
       ContentType: file.mimetype,
-    });
+    }));
 
-    await s3Client.send(uploadCommand);
-
-    // gera presigned URL com 5 minutos de expiração
-    const getCommand = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: file.originalname });
-    const fileUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 300 });
+    const fileUrl = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: file.originalname }),
+      { expiresIn: EXPIRES_IN }
+    );
 
     console.log({
       message: 'Arquivo salvo com sucesso',
       name: file.originalname,
       size: file.size,
-      url: fileUrl,
+      enviadoPor: usuarioLogado?.email,
     });
 
     res.status(200).json({
-      message: 'Arquivo salvo com sucesso',
+      message: 'Arquivo enviado com sucesso',
       url: fileUrl,
       name: file.originalname,
       size: file.size,
+      enviadoPor: usuarioLogado?.email,
     });
   } catch (error) {
     console.error('Erro no upload S3:', error);
@@ -62,8 +64,8 @@ export const postArchive = async (req: Request, res: Response) => {
   }
 };
 
-// getArchive
-export const getArchive = async (req: Request, res: Response) => {
+// gera uma presigned URL para acesso ao arquivo pelo nome
+export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
   const { name } = req.params;
 
   if (!name) {
@@ -71,18 +73,21 @@ export const getArchive = async (req: Request, res: Response) => {
     return;
   }
 
-  const filePath = path.join(process.env.LOCAL_STORAGE_PATH ?? '', name);
+  try {
+    const fileUrl = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: name }),
+      { expiresIn: EXPIRES_IN }
+    );
 
-  if (!fs.existsSync(filePath)) {
+    console.log({
+      name,
+      acessadoEm: new Date().toLocaleString('pt-BR'),
+      acessadoPor: req.user?.email,
+    });
+
+    res.status(200).json({ url: fileUrl });
+  } catch (error) {
     res.status(404).json({ message: 'Arquivo não encontrado' });
-    return;
   }
-
-  console.log({
-    name,
-    size: fs.statSync(filePath).size,
-    acessadoEm: new Date().toLocaleString('pt-BR'),
-  });
-
-  res.sendFile(filePath);
 };
