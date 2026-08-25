@@ -22,7 +22,7 @@ authRouter.get('/login', (_req: Request, res: Response) => {
 });
 
 // callback após autenticação na Genesys
-authRouter.get('/callback', async (req: Request, res: Response) => {
+authRouter.get('/oauth/callback', async (req: Request, res: Response) => {
   try {
     const { code, state } = req.query as { code: string; state: string };
     const result = await authService.handleCallback(code, state);

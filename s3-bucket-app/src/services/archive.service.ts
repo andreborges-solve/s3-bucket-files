@@ -7,6 +7,10 @@ export interface UploadResponse {
   url: string;
 }
 
+function getToken() {
+  return localStorage.getItem('token') ?? '';
+}
+
 // envia o arquivo pro backend e retorna os dados com o link temporário
 export async function uploadArchive(file: File): Promise<UploadResponse> {
   const formData = new FormData();
@@ -14,6 +18,7 @@ export async function uploadArchive(file: File): Promise<UploadResponse> {
 
   const response = await fetch(`${API_URL}/upload`, {
     method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
     body: formData,
   });
 

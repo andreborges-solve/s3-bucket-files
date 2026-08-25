@@ -2,7 +2,7 @@ import multer from 'multer';
 import type { Response } from 'express';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import type { AuthenticatedRequest } from '../middlewares/auth.middleware';
+import type { AuthenticatedRequest } from '../auth/auth.middleware';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,

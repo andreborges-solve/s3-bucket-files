@@ -31,7 +31,7 @@ app.get('/api', (_req: Request, res: Response) => {
 });
 
 app.use('/api', archiveRouter);
-app.use('/auth', authRouter);
+app.use(authRouter);
 
 app.listen(port, () => {
   console.log(`Servidor rodando na porta: ${port}`);

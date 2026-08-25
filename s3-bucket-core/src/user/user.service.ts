@@ -14,7 +14,6 @@ export interface User {
   createdAt: Date;
 }
 
-// repositório em memória — substituir por MySQL quando estiver pronto
 const users: User[] = [];
 let nextId = 1;
 
