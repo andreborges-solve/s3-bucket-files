@@ -12,7 +12,7 @@ export class AuthService {
 
   constructor(private readonly userService: UserService) {}
 
-  // gera URL de login com desafio PKCE
+  // gera URL de login PKCE
   generateLoginUrl(): string {
     const state = crypto.randomBytes(16).toString('hex');
     const verifier = crypto.randomBytes(32).toString('base64url');
