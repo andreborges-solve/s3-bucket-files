@@ -6,9 +6,24 @@ import Slide from '@mui/material/Slide';
 
 const AUTH_LOGIN_URL = 'http://localhost:3000/login';
 
+// extrai o payload do JWT
+function getEmailFromToken(token: string | null): string | null {
+  if (!token) return null;
+  try {
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) return null;
+    const jsonStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const data = JSON.parse(jsonStr);
+    return data.email || null;
+  } catch {
+    return null;
+  }
+}
+
 export const App: React.FC = () => {
   const [pronto, setPronto] = useState(false);
   const [mostrarSucesso, setMostrarSucesso] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     // se voltou do Genesys com o token na URL, salva e limpa a URL
@@ -18,18 +33,21 @@ export const App: React.FC = () => {
       localStorage.setItem('token', token);
       window.history.replaceState({}, '', '/');
       console.log('Auth - Login bem-sucedido, token recebido da Genesys');
-      setMostrarSucesso(true);
-      setTimeout(() => setMostrarSucesso(false), 3000);
     }
 
-    // se não tem token salvo, manda pro login
-    if (!localStorage.getItem('token')) {
+    const savedToken = localStorage.getItem('token');
+
+    // se não tem token no storage vai para a tela de login do genesys
+    if (!savedToken) {
       console.log('Auth - Sem token salvo, redirecionando para login');
       window.location.href = AUTH_LOGIN_URL;
       return;
     }
 
-    console.log('Auth - Sessão válida, usuário autenticado');
+    const email = getEmailFromToken(savedToken);
+    setUserEmail(email);
+
+    console.log(`Auth - Sessão válida, usuário autenticado: ${email ?? 'desconhecido'}`);
     setMostrarSucesso(true);
     setTimeout(() => setMostrarSucesso(false), 3000);
     setPronto(true);
@@ -42,7 +60,8 @@ export const App: React.FC = () => {
       <Slide in={mostrarSucesso} direction="right" mountOnEnter unmountOnExit timeout={400}>
         <Stack
           sx={{
-            width: '20%',
+            width: 'auto',
+            maxWidth: '380px',
             position: 'fixed',
             top: 16,
             left: 16,
@@ -59,7 +78,9 @@ export const App: React.FC = () => {
               border: '2px solid #99eba4',
             }}
           >
-            Usuario autenticado com sucesso
+            {userEmail
+              ? `Usuário autenticado: ${userEmail}`
+              : 'Usuário autenticado com sucesso'}
           </Alert>
         </Stack>
       </Slide>

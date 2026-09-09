@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
+export interface UploadResult {
+  url: string;
+  name?: string;
+  size?: number;
+}
+
 export interface FileUploadProps {
-  onUploadClick?: (file: File) => Promise<string> | void;
+  onUploadClick?: (file: File) => Promise<UploadResult | string | null | undefined> | void;
   buttonText?: string;
   placeholderText?: string;
   uploadButtonText?: string;
@@ -28,41 +34,60 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   // url temporária gerada após o envio
   const [tempUrl, setTempUrl] = useState<string | null>(null);
+  const [uploadedInfo, setUploadedInfo] = useState<{
+    name: string;
+    size: number;
+    uploadedAt: string;
+  } | null>(null);
 
   // temporizador de 5 minutos — controla quando o link expira e some da tela
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!expiresAt) return;
     timerRef.current = setInterval(() => {
       const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
-      setTimeLeft(remaining);
       if (remaining === 0) {
         clearInterval(timerRef.current!);
         setTempUrl(null);
+        setUploadedInfo(null);
         setExpiresAt(null);
       }
     }, 1000);
     return () => clearInterval(timerRef.current!);
   }, [expiresAt]);
 
-  // dispara o envio, usa a URL retornada pelo back se disponível, senão usa local
+  // dispara o envio usando a URL retornada pelo backend
   async function handleEnviar() {
     if (!selectedFile) return;
-    if (tempUrl) URL.revokeObjectURL(tempUrl);
 
-    let url = URL.createObjectURL(selectedFile);
     if (onUploadClick) {
-      const backUrl = await onUploadClick(selectedFile);
-      if (backUrl) url = backUrl;
-    }
+      const res = await onUploadClick(selectedFile);
+      if (!res) return; // Se falhou o upload, não exibe nada falso
 
-    const expiry = Date.now() + 5 * 60 * 1000;
-    setTempUrl(url);
-    setExpiresAt(expiry);
-    setTimeLeft(300);
+      const now = new Date().toLocaleString('pt-BR');
+      let finalUrl = '';
+      if (typeof res === 'string') {
+        finalUrl = res;
+        setUploadedInfo({
+          name: selectedFile.name,
+          size: selectedFile.size,
+          uploadedAt: now,
+        });
+      } else {
+        finalUrl = res.url;
+        setUploadedInfo({
+          name: res.name || selectedFile.name,
+          size: res.size ?? selectedFile.size,
+          uploadedAt: now,
+        });
+      }
+
+      const expiry = Date.now() + 5 * 60 * 1000;
+      setTempUrl(finalUrl);
+      setExpiresAt(expiry);
+    }
   }
 
   // captura o arquivo quando o usuário seleciona pelo input
@@ -70,10 +95,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
   }
-
-  const displayText = selectedFile
-    ? `${selectedFile.name} | ${formatFileSize(selectedFile.size)}`
-    : placeholderText;
 
   return (
     <div
@@ -137,11 +158,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           borderRadius: '8px',
           border: '1px solid #eaecf0',
           minWidth: '260px',
-          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
           boxSizing: 'border-box',
         }}
       >
-        {displayText}
+        {selectedFile ? (
+          <>
+            <span>{selectedFile.name}</span>
+            <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
+            <span>{formatFileSize(selectedFile.size)}</span>
+          </>
+        ) : (
+          <span>{placeholderText}</span>
+        )}
       </div>
 
       {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
@@ -176,14 +208,36 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             padding: '16px 20px',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
+            justifyContent: 'space-between',
+            gap: '16px',
             flexWrap: 'wrap',
             boxSizing: 'border-box',
           }}
         >
-          <span style={{ fontSize: '13px', color: '#475467', flex: 1, wordBreak: 'break-all' }}>
-            {tempUrl}
-          </span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#344054',
+              flex: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            {uploadedInfo ? (
+              <>
+                <span style={{ fontWeight: 600 }}>{uploadedInfo.name}</span>
+                <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
+                <span>{formatFileSize(uploadedInfo.size)}</span>
+                <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
+                <span style={{ color: '#667085', fontSize: '13px' }}>{uploadedInfo.uploadedAt}</span>
+              </>
+            ) : (
+              <span>{tempUrl}</span>
+            )}
+          </div>
 
           {/* botão que abre o arquivo numa nova aba */}
           <button

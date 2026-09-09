@@ -4,7 +4,10 @@
   "description": "aplicação para envio de anexo para um s3 bucket e retorna um link de aceso temporario ",
   "main": "server.js",
   "scripts": {
-    "dev": "tsx server.ts"
+    "dev": "tsx server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test-s3": "node src/test/bucket-test.js"
   },
   "keywords": [],
   "author": "André Borges",

@@ -8,7 +8,7 @@ export interface AuthenticatedUser {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user: AuthenticatedUser;
+  user?: AuthenticatedUser;
 }
 
 // middleware que valida o JWT e injeta o usuário no req

@@ -33,7 +33,22 @@ app.get('/api', (_req: Request, res: Response) => {
 app.use('/api', archiveRouter);
 app.use(authRouter);
 
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta: ${port}`);
-  console.log(`Swagger disponível em: http://localhost:${port}/docs`);
-});
+import { cleanExpiredBucketFiles } from './src/controllers/bucket.controller';
+
+async function bootstrap() {
+  const { runChecagens } = require('./src/test/healthy');
+  await runChecagens();
+
+  // Executa a limpeza de arquivos com mais de 30 dias ao iniciar e a cada 24h
+  cleanExpiredBucketFiles().catch((err) => console.error('[Bucket Cleanup] Erro inicial:', err));
+  setInterval(() => {
+    cleanExpiredBucketFiles().catch((err) => console.error('[Bucket Cleanup] Erro rotina:', err));
+  }, 24 * 60 * 60 * 1000);
+
+  app.listen(port, () => {
+    console.log(`Servidor rodando na porta: ${port}`);
+    console.log(`Swagger disponível em: http://localhost:${port}/docs`);
+  });
+}
+
+bootstrap();

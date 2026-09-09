@@ -15,7 +15,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
-const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300');
+const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300', 10);
 
 // memoryStorage para ter acesso ao file.buffer e enviar pro S3
 export const upload = multer({ storage: multer.memoryStorage() });

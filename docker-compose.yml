@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./s3-bucket-core
+      dockerfile: Dockerfile
+    container_name: s3-bucket-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./s3-bucket-core/.env
+    environment:
+      - NODE_ENV=production
+
+  frontend:
+    build:
+      context: ./s3-bucket-app
+      dockerfile: Dockerfile
+    container_name: s3-bucket-frontend
+    restart: unless-stopped
+    ports:
+      - "80:5173"
+    depends_on:
+      - backend
