@@ -1,15 +1,16 @@
-# S3 Bucket Files
+# UploadAnexosAWS (S3 Bucket Files)
 
-Aplicação para upload de arquivos para um bucket S3 com geração de link temporário de acesso.
+Aplicação corporativa para upload de arquivos com armazenamento direto em bucket **AWS S3**, geração de URLs pré-assinadas temporárias e autenticação OAuth2 PKCE via **Genesys Cloud**.
 
 ---
 
 ## O que a aplicação faz
 
-- Você seleciona um arquivo no front, clica em "Enviar arquivo" e ele é salvo no servidor
-- O back retorna um link temporário de acesso ao arquivo
-- O link fica disponível por 5 minutos — depois some da tela automaticamente
-- O botão "Visualizar" abre o arquivo numa nova aba
+- **Autenticação:** Proteção por fluxo OAuth2 Authorization Code PKCE via Genesys Cloud e validação por token JWT.
+- **Upload Seguro:** Envio direto do arquivo (via memória) para o bucket AWS S3 configurado.
+- **Visualização do Último Arquivo:** Ao carregar ou atualizar a tela (F5), a aplicação consulta o bucket e exibe apenas o último arquivo adicionado com o botão "Visualizar".
+- **URLs Pré-assinadas:** Gera links temporários e seguros da AWS S3 para download/visualização sem expor o bucket publicamente.
+- **Retenção e Limpeza Automática:** Rotina diária no backend que expurga do bucket arquivos com mais de 30 dias de armazenamento.
 
 ---
 
@@ -17,85 +18,58 @@ Aplicação para upload de arquivos para um bucket S3 com geração de link temp
 
 ```
 s3-bucket-files/
-├── s3-bucket-app/     → frontend em React + TypeScript
-└── s3-bucket-core/    → backend em Node + Express + TypeScript
+├── docker-compose.yml     → Orquestração Docker dos containers (uploadanexosaws)
+├── s3-bucket-app/         → Frontend React 19 + TypeScript + Vite + MUI
+└── s3-bucket-core/        → Backend Node.js 20 + Express + TypeScript + AWS SDK v3
 ```
 
 ---
 
-## Endpoints
+## Endpoints da API
 
-### POST /api/upload
-Recebe o arquivo e salva no servidor (futuramente no bucket S3).
+### Autenticação (Genesys PKCE)
+- `GET /login`: Redireciona o usuário para login na Genesys Cloud com PKCE.
+- `GET /oauth/callback`: Recebe o authorization code, troca por token na Genesys, gera o JWT da sessão e redireciona de volta para o frontend com o token.
 
-**Requisição**
+### Upload e Arquivos (Protegidos por Bearer JWT)
+- `POST /api/upload`: Recebe o arquivo (`multipart/form-data`) e envia para o AWS S3.
+- `GET /api/upload/latest`: Retorna os dados e a URL pré-assinada do último arquivo adicionado no bucket.
+- `GET /api/upload/:name`: Retorna uma nova URL pré-assinada para um arquivo específico pelo nome.
+- `GET /api`: Health check da API.
+
+---
+
+## Como Rodar
+
+### Opção 1: Via Docker Compose (Recomendado para Produção)
+
+Suba toda a stack em segundo plano com um único comando na raiz do projeto:
+
+```bash
+docker compose up -d --build
 ```
-Content-Type: multipart/form-data
 
-file: <arquivo selecionado>
-```
+- **Frontend:** [http://localhost:5173](http://localhost:5173) (ou porta configurada)
+- **Backend:** [http://localhost:3000](http://localhost:3000)
 
-**Resposta de sucesso (200)**
-```json
-{
-  "message": "Arquivo salvo com sucesso",
-  "url": "http://localhost:3000/api/upload/arquivo.pdf",
-  "name": "arquivo.pdf",
-  "size": 204800
-}
-```
-
-**Resposta de erro (400)**
-```json
-{
-  "message": "Nenhum arquivo enviado"
-}
+Para parar os containers:
+```bash
+docker compose down
 ```
 
 ---
 
-### GET /api/upload/:name
-Retorna o arquivo pelo nome. É essa URL que o botão "Visualizar" abre.
+### Opção 2: Localmente (Modo Desenvolvimento)
 
-**Exemplo**
-```
-GET /api/upload/arquivo.pdf
-```
-
-**Resposta de sucesso (200)**
-Retorna o arquivo diretamente (stream), abrindo no browser.
-
-**Resposta de erro (404)**
-```json
-{
-  "message": "Arquivo não encontrado"
-}
-```
-
----
-
-### GET /api
-Health check — só pra confirmar que o servidor está rodando.
-
-**Resposta (200)**
-```json
-{
-  "status": "Aplicação rodando na porta 3000"
-}
-```
-
----
-
-## Como rodar
-
-**Backend**
+#### 1. Backend (`s3-bucket-core`)
 ```bash
 cd s3-bucket-core
 npm install
+# Crie seu arquivo .env com base no .env.example
 npm run dev
 ```
 
-**Frontend**
+#### 2. Frontend (`s3-bucket-app`)
 ```bash
 cd s3-bucket-app
 npm install
@@ -104,38 +78,23 @@ npm run dev
 
 ---
 
-## Variáveis de ambiente — quando integrar com o S3
+## Variáveis de Ambiente (`s3-bucket-core/.env`)
 
-Crie um arquivo `.env` na raiz do `s3-bucket-core` com as seguintes variáveis:
+Configure o arquivo `.env` dentro de `s3-bucket-core`:
 
 ```env
+# Bucket S3
 AWS_ACCESS_KEY_ID=sua_access_key
 AWS_SECRET_ACCESS_KEY=sua_secret_key
 AWS_REGION=us-east-1
-S3_BUCKET_NAME=nome-do-seu-bucket
+AWS_URL=
+AWS_BUCKET_NAME=nome-do-seu-bucket
+PRESIGNED_URL_EXPIRES_IN=604800 # Validade da URL (em segundos - até 7 dias)
+
+# Auth PKCE Genesys
+GENESYS_CLIENT_ID=seu_genesys_client_id
+GENESYS_REGION=sae1.pure.cloud
+GENESYS_OAUTH_REDIRECT_URI=http://localhost:3000/oauth/callback
+JWT_SECRET=sua_chave_secreta_jwt
+FRONT_URL=http://localhost:5173
 ```
-
-- `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY` — credenciais do usuário IAM com permissão no S3
-- `AWS_REGION` — região onde o bucket foi criado (ex: `us-east-1`, `sa-east-1`)
-- `S3_BUCKET_NAME` — nome exato do bucket
-
----
-
-## Permissões IAM mínimas necessárias
-
-```json
-{
-  "Effect": "Allow",
-  "Action": [
-    "s3:PutObject",
-    "s3:GetObject"
-  ],
-  "Resource": "arn:aws:s3:::nome-do-seu-bucket/*"
-}
-```
-
----
-
-## O que muda quando integrar com o S3
-
-Hoje o arquivo é salvo numa pasta local. Quando o bucket estiver pronto, só muda o controller — em vez de salvar com `multer.diskStorage`, você usa o SDK da AWS pra fazer o upload e gera a presigned URL. O front não muda nada.

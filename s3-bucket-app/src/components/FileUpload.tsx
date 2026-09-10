@@ -46,11 +46,20 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     let active = true;
     getLatestArchive().then((latest) => {
       if (!active || !latest) return;
+      
+      let localDateStr = '';
+      if (latest.uploadedAt) {
+        const parsedDate = new Date(latest.uploadedAt);
+        localDateStr = !isNaN(parsedDate.getTime())
+          ? parsedDate.toLocaleString()
+          : latest.uploadedAt;
+      }
+
       setTempUrl(latest.url);
       setUploadedInfo({
         name: latest.name,
         size: latest.size,
-        uploadedAt: latest.uploadedAt,
+        uploadedAt: localDateStr,
       });
     });
     return () => {

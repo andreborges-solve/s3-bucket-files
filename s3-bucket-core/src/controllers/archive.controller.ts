@@ -125,7 +125,7 @@ export const getLastArchive = async (req: AuthenticatedRequest, res: Response) =
     res.status(200).json({
       name: latest.Key,
       size: latest.Size ?? 0,
-      uploadedAt: latest.LastModified ? new Date(latest.LastModified).toLocaleString('pt-BR') : '',
+      uploadedAt: latest.LastModified ? latest.LastModified.toISOString() : '',
       url: fileUrl,
     });
   } catch (error) {
