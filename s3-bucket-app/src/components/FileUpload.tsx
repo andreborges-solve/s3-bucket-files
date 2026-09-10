@@ -109,111 +109,121 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     <div
       style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
         width: '100%',
-        flexWrap: 'wrap',
+        gap: '20px',
       }}
     >
-      {/* botão que abre o seletor de arquivo do sistema */}
-      <label
-        style={{
-          backgroundColor: '#2e3cb4',
-          color: '#ffffff',
-          fontWeight: 600,
-          fontSize: '14px',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-          <path d="M12 12v9" />
-          <path d="m16 16-4-4-4 4" />
-        </svg>
-        {buttonText}
-        <input
-          type="file"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-      </label>
-
-      {/* campo que mostra o nome e tamanho do arquivo selecionado */}
+      {/* Linha com os controles de seleção e envio */}
       <div
         style={{
-          backgroundColor: '#f9fafb',
-          color: '#475467',
-          fontWeight: 500,
-          fontSize: '14px',
-          padding: '10px 20px',
-          borderRadius: '8px',
-          border: '1px solid #eaecf0',
-          minWidth: '260px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '10px',
-          boxSizing: 'border-box',
+          gap: '12px',
+          width: '100%',
+          flexWrap: 'wrap',
         }}
       >
-        {selectedFile ? (
-          <>
-            <span>{selectedFile.name}</span>
-            <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
-            <span>{formatFileSize(selectedFile.size)}</span>
-          </>
-        ) : (
-          <span>{placeholderText}</span>
-        )}
+        {/* botão que abre o seletor de arquivo do sistema */}
+        <label
+          style={{
+            backgroundColor: '#2e3cb4',
+            color: '#ffffff',
+            fontWeight: 600,
+            fontSize: '14px',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            userSelect: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+            <path d="M12 12v9" />
+            <path d="m16 16-4-4-4 4" />
+          </svg>
+          {buttonText}
+          <input
+            type="file"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </label>
+
+        {/* campo que mostra o nome e tamanho do arquivo selecionado */}
+        <div
+          style={{
+            backgroundColor: '#f9fafb',
+            color: '#475467',
+            fontWeight: 500,
+            fontSize: '14px',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: '1px solid #eaecf0',
+            minWidth: '260px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {selectedFile ? (
+            <>
+              <span>{selectedFile.name}</span>
+              <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
+              <span>{formatFileSize(selectedFile.size)}</span>
+            </>
+          ) : (
+            <span>{placeholderText}</span>
+          )}
+        </div>
+
+        {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
+        <button
+          type="button"
+          onClick={handleEnviar}
+          disabled={!selectedFile}
+          style={{
+            backgroundColor: selectedFile ? '#2e3cb4' : '#d0d5dd',
+            color: '#ffffff',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: 600,
+            padding: '10px 20px',
+            borderRadius: '8px',
+            cursor: selectedFile ? 'pointer' : 'not-allowed',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {uploadButtonText}
+        </button>
       </div>
 
-      {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
-      <button
-        type="button"
-        onClick={handleEnviar}
-        disabled={!selectedFile}
-        style={{
-          backgroundColor: selectedFile ? '#2e3cb4' : '#d0d5dd',
-          color: '#ffffff',
-          border: 'none',
-          fontSize: '14px',
-          fontWeight: 600,
-          padding: '10px 20px',
-          borderRadius: '8px',
-          cursor: selectedFile ? 'pointer' : 'not-allowed',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {uploadButtonText}
-      </button>
-
-      {/* bloco do link temporário — aparece após o envio e some quando o link expira */}
+      {/* bloco do último arquivo — renderizado abaixo dos controles */}
       {tempUrl && (
         <div
           style={{
             width: '100%',
-            marginTop: '16px',
-            backgroundColor: '#f9fafb',
+            backgroundColor: '#ffffff',
             border: '1px solid #eaecf0',
-            borderRadius: '8px',
+            borderRadius: '12px',
             padding: '16px 20px',
             display: 'flex',
             alignItems: 'center',
@@ -221,6 +231,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             gap: '16px',
             flexWrap: 'wrap',
             boxSizing: 'border-box',
+            boxShadow: '0 1px 3px rgba(16, 24, 40, 0.05)',
           }}
         >
           <div

@@ -46,7 +46,15 @@ export async function getLatestArchive(): Promise<LatestArchiveResponse | null> 
       headers: { Authorization: `Bearer ${token}` },
     });
 
+    if (response.status === 401) {
+      console.warn('Token expirado ao buscar último arquivo. Redirecionando para login...');
+      localStorage.removeItem('token');
+      window.location.href = 'http://localhost:3000/login';
+      return null;
+    }
+
     if (!response.ok) {
+      console.error('Erro na resposta do /upload/latest:', response.status, response.statusText);
       return null;
     }
 

@@ -5,6 +5,7 @@ import Stack from '@mui/material/Stack';
 import Slide from '@mui/material/Slide';
 
 const AUTH_LOGIN_URL = 'http://localhost:3000/login';
+const AUTH_LOGOUT_URL = 'http://localhost:3000/logout';
 
 // extrai o payload do JWT
 function getEmailFromToken(token: string | null): string | null {
@@ -32,7 +33,7 @@ export const App: React.FC = () => {
     if (token) {
       localStorage.setItem('token', token);
       window.history.replaceState({}, '', '/');
-      console.log('Auth - Login bem-sucedido, token recebido da Genesys');
+      // console.log('Auth - Login bem-sucedido, token recebido da Genesys');
     }
 
     const savedToken = localStorage.getItem('token');
@@ -45,9 +46,15 @@ export const App: React.FC = () => {
     }
 
     const email = getEmailFromToken(savedToken);
+    if (!email) {
+      console.log('Auth - Token inválido ou corrompido, redirecionando para login');
+      localStorage.removeItem('token');
+      window.location.href = AUTH_LOGIN_URL;
+      return;
+    }
+
     setUserEmail(email);
 
-    // console.log(`oauth - Usuário autenticado: ${email ?? 'desconhecido'}`); //teste do auth
     setMostrarSucesso(true);
     setTimeout(() => setMostrarSucesso(false), 3000);
     setPronto(true);
@@ -84,6 +91,28 @@ export const App: React.FC = () => {
           </Alert>
         </Stack>
       </Slide>
+      <button
+        onClick={() => {
+          localStorage.removeItem('token');
+          window.location.href = AUTH_LOGOUT_URL;
+        }}
+        style={{
+          position: 'fixed',
+          top: 16,
+          right: 16,
+          zIndex: 100,
+          padding: '8px 16px',
+          backgroundColor: '#ff4d4f',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}
+      >
+        Sair
+      </button>
       <GerenciadorBucket />
     </>
   );

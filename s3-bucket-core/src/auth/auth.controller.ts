@@ -21,6 +21,17 @@ authRouter.get('/login', (_req: Request, res: Response) => {
   }
 });
 
+// rota para fazer o logout na Genesys
+authRouter.get('/logout', (_req: Request, res: Response) => {
+  const region = process.env.GENESYS_REGION ?? 'sae1.pure.cloud';
+  const clientId = process.env.GENESYS_CLIENT_ID ?? '';
+  const redirectUri = encodeURIComponent(FRONT_URL);
+  
+  // URL oficial de logout da Genesys
+  const logoutUrl = `https://login.${region}/logout?client_id=${clientId}&redirect_uri=${redirectUri}`;
+  res.redirect(logoutUrl);
+});
+
 // callback após autenticação na Genesys
 authRouter.get('/oauth/callback', async (req: Request, res: Response) => {
   try {
