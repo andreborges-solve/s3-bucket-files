@@ -28,3 +28,32 @@ export async function uploadArchive(file: File): Promise<UploadResponse> {
 
   return response.json() as Promise<UploadResponse>;
 }
+
+export interface LatestArchiveResponse {
+  name: string;
+  size: number;
+  uploadedAt: string;
+  url: string;
+}
+
+// busca o último arquivo adicionado no bucket S3
+export async function getLatestArchive(): Promise<LatestArchiveResponse | null> {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_URL}/upload/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error('Erro ao buscar último arquivo:', err);
+    return null;
+  }
+}

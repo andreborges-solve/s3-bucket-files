@@ -1,6 +1,6 @@
 import multer from 'multer';
 import type { Response } from 'express';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { AuthenticatedRequest } from '../auth/auth.middleware';
 
@@ -89,5 +89,47 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
     res.status(200).json({ url: fileUrl });
   } catch (error) {
     res.status(404).json({ message: 'Arquivo não encontrado' });
+  }
+};
+
+// busca o último arquivo adicionado no S3 e retorna os dados com uma URL pré-assinada atualizada
+export const getLastArchive = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const list = await s3Client.send(
+      new ListObjectsV2Command({ Bucket: BUCKET_NAME })
+    );
+
+    if (!list.Contents || list.Contents.length === 0) {
+      res.status(200).json(null);
+      return;
+    }
+
+    // Ordena do mais recente para o mais antigo com base em LastModified
+    const sorted = [...list.Contents]
+      .filter((item) => Boolean(item.Key && item.LastModified))
+      .sort((a, b) => new Date(b.LastModified!).getTime() - new Date(a.LastModified!).getTime());
+
+    const latest = sorted[0];
+
+    if (!latest || !latest.Key) {
+      res.status(200).json(null);
+      return;
+    }
+
+    const fileUrl = await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: latest.Key }),
+      { expiresIn: EXPIRES_IN }
+    );
+
+    res.status(200).json({
+      name: latest.Key,
+      size: latest.Size ?? 0,
+      uploadedAt: latest.LastModified ? new Date(latest.LastModified).toLocaleString('pt-BR') : '',
+      url: fileUrl,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar último arquivo do S3:', error);
+    res.status(500).json({ message: 'Erro ao buscar o último arquivo do bucket' });
   }
 };

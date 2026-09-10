@@ -47,7 +47,7 @@ export const App: React.FC = () => {
     const email = getEmailFromToken(savedToken);
     setUserEmail(email);
 
-    console.log(`Auth - Sessão válida, usuário autenticado: ${email ?? 'desconhecido'}`);
+    // console.log(`oauth - Usuário autenticado: ${email ?? 'desconhecido'}`); //teste do auth
     setMostrarSucesso(true);
     setTimeout(() => setMostrarSucesso(false), 3000);
     setPronto(true);

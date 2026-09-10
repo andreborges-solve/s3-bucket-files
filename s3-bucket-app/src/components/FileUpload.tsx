@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
+import { getLatestArchive } from '../services/archive.service';
 
 export interface UploadResult {
   url: string;
@@ -32,7 +33,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   // arquivo selecionado pelo usuário
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // url temporária gerada após o envio
+  // carregar último arquivo
   const [tempUrl, setTempUrl] = useState<string | null>(null);
   const [uploadedInfo, setUploadedInfo] = useState<{
     name: string;
@@ -40,23 +41,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     uploadedAt: string;
   } | null>(null);
 
-  // temporizador de 5 minutos — controla quando o link expira e some da tela
-  const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // Ao montar ou atualizar a página (F5), busca o último arquivo adicionado no bucket S3
   useEffect(() => {
-    if (!expiresAt) return;
-    timerRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
-      if (remaining === 0) {
-        clearInterval(timerRef.current!);
-        setTempUrl(null);
-        setUploadedInfo(null);
-        setExpiresAt(null);
-      }
-    }, 1000);
-    return () => clearInterval(timerRef.current!);
-  }, [expiresAt]);
+    let active = true;
+    getLatestArchive().then((latest) => {
+      if (!active || !latest) return;
+      setTempUrl(latest.url);
+      setUploadedInfo({
+        name: latest.name,
+        size: latest.size,
+        uploadedAt: latest.uploadedAt,
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // dispara o envio usando a URL retornada pelo backend
   async function handleEnviar() {
@@ -68,25 +68,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       const now = new Date().toLocaleString('pt-BR');
       let finalUrl = '';
+      let infoName = selectedFile.name;
+      let infoSize = selectedFile.size;
+
       if (typeof res === 'string') {
         finalUrl = res;
-        setUploadedInfo({
-          name: selectedFile.name,
-          size: selectedFile.size,
-          uploadedAt: now,
-        });
       } else {
         finalUrl = res.url;
-        setUploadedInfo({
-          name: res.name || selectedFile.name,
-          size: res.size ?? selectedFile.size,
-          uploadedAt: now,
-        });
+        infoName = res.name || selectedFile.name;
+        infoSize = res.size ?? selectedFile.size;
       }
 
-      const expiry = Date.now() + 5 * 60 * 1000;
+      const info = {
+        name: infoName,
+        size: infoSize,
+        uploadedAt: now,
+      };
+
+      setUploadedInfo(info);
       setTempUrl(finalUrl);
-      setExpiresAt(expiry);
     }
   }
 
@@ -226,6 +226,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               flexWrap: 'wrap',
             }}
           >
+            <span
+              style={{
+                backgroundColor: '#e0e7ff',
+                color: '#3730a3',
+                fontSize: '12px',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: '4px',
+              }}
+            >
+              Último arquivo
+            </span>
             {uploadedInfo ? (
               <>
                 <span style={{ fontWeight: 600 }}>{uploadedInfo.name}</span>
