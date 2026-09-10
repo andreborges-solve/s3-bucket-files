@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import archiveRouter from './src/routes/archive.routes';
@@ -36,7 +38,10 @@ app.use(authRouter);
 import { cleanExpiredBucketFiles } from './src/controllers/bucket.controller';
 
 async function bootstrap() {
-  const { runChecagens } = require('./src/test/healthy');
+  const healthyPath = fs.existsSync(path.resolve(__dirname, 'src/test/healthy.js'))
+    ? path.resolve(__dirname, 'src/test/healthy.js')
+    : path.resolve(__dirname, '../src/test/healthy.js');
+  const { runChecagens } = require(healthyPath);
   await runChecagens();
 
   // Executa a limpeza de arquivos com mais de 30 dias ao iniciar e a cada 24h
