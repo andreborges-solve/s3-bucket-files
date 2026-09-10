@@ -22,5 +22,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:5173"
+    environment:
+      - NODE_ENV=production
     depends_on:
       - backend
