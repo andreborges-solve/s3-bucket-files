@@ -33,7 +33,7 @@ export const App: React.FC = () => {
     if (token) {
       localStorage.setItem('token', token);
       window.history.replaceState({}, '', '/');
-      // console.log('Auth - Login bem-sucedido, token recebido da Genesys');
+      console.log('Auth - Login bem-sucedido, token recebido da Genesys');
     }
 
     const savedToken = localStorage.getItem('token');
@@ -91,28 +91,6 @@ export const App: React.FC = () => {
           </Alert>
         </Stack>
       </Slide>
-      <button
-        onClick={() => {
-          localStorage.removeItem('token');
-          window.location.href = AUTH_LOGOUT_URL;
-        }}
-        style={{
-          position: 'fixed',
-          top: 16,
-          right: 16,
-          zIndex: 100,
-          padding: '8px 16px',
-          backgroundColor: '#ff4d4f',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-        }}
-      >
-        Sair
-      </button>
       <GerenciadorBucket />
     </>
   );
