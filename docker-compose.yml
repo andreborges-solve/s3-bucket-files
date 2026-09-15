@@ -21,7 +21,7 @@ services:
     container_name: s3-bucket-app
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "80:5173"
     environment:
       - NODE_ENV=production
     depends_on:
