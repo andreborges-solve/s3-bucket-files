@@ -4,7 +4,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Slide from '@mui/material/Slide';
 
-const AUTH_LOGIN_URL = 'http://localhost:3000/login';
+const AUTH_LOGIN_URL = '/login';
 
 // extrai o payload do JWT
 function getEmailFromToken(token: string | null): string | null {
