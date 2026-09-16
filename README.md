@@ -4,6 +4,9 @@ Aplicação corporativa para upload de arquivos com armazenamento direto em buck
 
 ---
 
+## BRANCH EM PRODUÇÃO: main
+## Feita em cima da branch: dev-s3-bucket
+
 ## O que a aplicação faz
 
 - **Autenticação:** Proteção por fluxo OAuth2 Authorization Code PKCE via Genesys Cloud e geração de token JWT de sessão.
