@@ -21,7 +21,7 @@ services:
     container_name: s3-bucket-app
     restart: unless-stopped
     ports:
-      - "80:5173"
+      - "80:80"
     environment:
       - NODE_ENV=production
       - BACKEND_URL=http://backend:3000
