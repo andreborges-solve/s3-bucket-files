@@ -10,6 +10,17 @@ import { cleanExpiredBucketFiles } from './src/controllers/bucket.controller';
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Log de todas as requisições que chegam ao backend
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
 const port = 3000;
 
 app.get('/api', (_req: Request, res: Response) => {
