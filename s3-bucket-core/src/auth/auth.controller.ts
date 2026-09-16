@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
 
-const FRONT_URL = process.env.FRONT_URL ?? 'http://localhost:5173';
+const FRONT_URL = process.env.FRONT_URL ?? 'http://localhost';
 
 // instancia os serviços
 const userService = new UserService();
@@ -28,7 +28,7 @@ authRouter.get('/logout', (_req: Request, res: Response) => {
   const region = process.env.GENESYS_REGION ?? 'sae1.pure.cloud';
   const clientId = process.env.GENESYS_CLIENT_ID ?? '';
   const redirectUri = encodeURIComponent(FRONT_URL);
-  
+
   // URL oficial de logout da Genesys
   const logoutUrl = `https://login.${region}/logout?client_id=${clientId}&redirect_uri=${redirectUri}`;
   console.log('[Auth] Redirecionando para logout Genesys:', logoutUrl);

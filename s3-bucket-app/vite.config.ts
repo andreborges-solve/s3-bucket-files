@@ -24,16 +24,25 @@ export default defineConfig(({ mode }) => {
     },
   };
 
+  //config para permitir acesso externo
+  const allowedHosts = [
+    'upload-redeamericas.s4me.app',
+    'localhost',
+    '127.0.0.1',
+  ];
+
   return {
     plugins: [react()],
     server: {
       host: '0.0.0.0',
       port: 5173,
+      allowedHosts,
       proxy: proxyConfig,
     },
     preview: {
       host: '0.0.0.0',
       port: 80,
+      allowedHosts,
       proxy: proxyConfig,
     },
   };
