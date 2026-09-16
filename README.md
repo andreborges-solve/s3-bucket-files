@@ -4,8 +4,8 @@ Aplicação corporativa para upload de arquivos com armazenamento direto em buck
 
 ---
 
-## BRANCH EM PRODUÇÃO: main
-## Feita em cima da branch: dev-s3-bucket
+## BRANCH EM PRODUÇÃO: **main**
+- Feita com base na branch: **dev-s3-bucket**
 
 ## O que a aplicação faz
 
