@@ -22,9 +22,20 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   }
 
   const token = authHeader.split(' ')[1];
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL: JWT_SECRET não está definido nas variáveis de ambiente!');
+      res.status(500).json({ message: 'Erro interno de configuração de segurança' });
+      return;
+    }
+  }
+
+  const jwtSecret = secret || 'chave_secreta_jwt';
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET ?? 'chave_secreta_jwt') as AuthenticatedUser;
+    const payload = jwt.verify(token, jwtSecret) as AuthenticatedUser;
     (req as AuthenticatedRequest).user = payload;
     console.log(`Auth - feita com Sucesso - ${payload.email} acessou ${req.method} ${req.originalUrl}`);
     next();

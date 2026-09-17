@@ -14,7 +14,7 @@ const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
 const RETENTION_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Rotina que faz a varredura e deleta qualquer arquivo com mais de 30 dias
+// Rotina que faz a varredura completa e deleta qualquer arquivo com mais de 30 dias
 export async function cleanExpiredBucketFiles() {
   if (!BUCKET_NAME) {
     console.log('[Bucket Cleanup] AWS_BUCKET_NAME não definido.');
@@ -24,15 +24,29 @@ export async function cleanExpiredBucketFiles() {
   const cutoffDate = Date.now() - RETENTION_DAYS * MS_PER_DAY;
 
   try {
-    const listResponse = await s3Client.send(
-      new ListObjectsV2Command({ Bucket: BUCKET_NAME })
-    );
+    let allContents: Array<{ Key?: string; LastModified?: Date }> = [];
+    let continuationToken: string | undefined = undefined;
 
-    if (!listResponse.Contents || listResponse.Contents.length === 0) {
+    do {
+      const listResponse: any = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: BUCKET_NAME,
+          ContinuationToken: continuationToken,
+        })
+      );
+
+      if (listResponse.Contents) {
+        allContents = allContents.concat(listResponse.Contents);
+      }
+
+      continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    if (allContents.length === 0) {
       return { deletedCount: 0, files: [] };
     }
 
-    const expiredFiles = listResponse.Contents.filter((item) => {
+    const expiredFiles = allContents.filter((item) => {
       if (!item.LastModified) return false;
       return new Date(item.LastModified).getTime() < cutoffDate;
     });

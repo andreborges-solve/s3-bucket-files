@@ -1,4 +1,5 @@
 import multer from 'multer';
+import path from 'path';
 import type { Response } from 'express';
 import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -17,8 +18,13 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
 const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300', 10);
 
-// memoryStorage para ter acesso ao file.buffer e enviar pro S3
-export const upload = multer({ storage: multer.memoryStorage() });
+// memoryStorage com limites de tamanho de arquivo (max 50MB) para evitar crash de memória
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max
+  },
+});
 
 // recebe o arquivo, envia pro bucket e retorna a presigned URL
 export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
@@ -30,22 +36,27 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  // Gera chave única para evitar sobrescrita de arquivos com o mesmo nome
+  const sanitizedOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const uniqueKey = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${sanitizedOriginalName}`;
+
   try {
     await s3Client.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
-      Key: file.originalname,
+      Key: uniqueKey,
       Body: file.buffer,
       ContentType: file.mimetype,
     }));
 
     const fileUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: file.originalname }),
+      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: uniqueKey }),
       { expiresIn: EXPIRES_IN }
     );
 
     console.log({
       message: 'Arquivo salvo com sucesso',
+      key: uniqueKey,
       name: file.originalname,
       size: file.size,
       enviadoPor: usuarioLogado?.email,
@@ -54,7 +65,7 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     res.status(200).json({
       message: 'Arquivo enviado com sucesso',
       url: fileUrl,
-      name: file.originalname,
+      name: uniqueKey,
       size: file.size,
       enviadoPor: usuarioLogado?.email,
     });
@@ -64,7 +75,7 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-// gera uma presigned URL para acesso ao arquivo pelo nome
+// gera uma presigned URL para acesso ao arquivo pelo nome (sanitizando contra path traversal)
 export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
   const { name } = req.params;
 
@@ -73,15 +84,18 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
+  // Previne path traversal atacando o parâmetro de nome do arquivo
+  const safeKey = path.basename(name);
+
   try {
     const fileUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: name }),
+      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: safeKey }),
       { expiresIn: EXPIRES_IN }
     );
 
     console.log({
-      name,
+      name: safeKey,
       acessadoEm: new Date().toLocaleString('pt-BR'),
       acessadoPor: req.user?.email,
     });
@@ -92,20 +106,34 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-// busca o último arquivo adicionado no S3 e retorna os dados com uma URL pré-assinada atualizada
+// busca o último arquivo adicionado no S3 (varrendo todas as páginas do bucket) e retorna os dados com URL pré-assinada
 export const getLastArchive = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const list = await s3Client.send(
-      new ListObjectsV2Command({ Bucket: BUCKET_NAME })
-    );
+    let allContents: Array<{ Key?: string; LastModified?: Date; Size?: number }> = [];
+    let continuationToken: string | undefined = undefined;
 
-    if (!list.Contents || list.Contents.length === 0) {
+    do {
+      const list: any = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: BUCKET_NAME,
+          ContinuationToken: continuationToken,
+        })
+      );
+
+      if (list.Contents) {
+        allContents = allContents.concat(list.Contents);
+      }
+
+      continuationToken = list.IsTruncated ? list.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    if (allContents.length === 0) {
       res.status(200).json(null);
       return;
     }
 
     // Ordena do mais recente para o mais antigo com base em LastModified
-    const sorted = [...list.Contents]
+    const sorted = [...allContents]
       .filter((item) => Boolean(item.Key && item.LastModified))
       .sort((a, b) => new Date(b.LastModified!).getTime() - new Date(a.LastModified!).getTime());
 
