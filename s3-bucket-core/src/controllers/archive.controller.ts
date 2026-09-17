@@ -18,11 +18,41 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
 const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300', 10);
 
-// memoryStorage com limites de tamanho de arquivo max 50MB para evitar crash de memória
+//tipos de arquivos permitidos pra upload
+const ALLOWED_MIME_TYPES = [
+  // Documentos e Textos
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+
+  // Microsoft Office
+  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'application/vnd.ms-excel', // .xls
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-powerpoint', // .ppt
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  // imagens
+  'image/jpeg',
+  'image/png',
+  'image/svg+xml',
+  'image/tiff', // digitalização de documentos
+  //.zip
+  'application/zip',
+];
+
+// memoryStorage com limites de tamanho de arquivo max 50MB e filtro de extensão
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB max
+  },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Tipo de arquivo não suportado. Envie apenas PDF, Imagens, Excel, Word, CSV ou TXT.'));
+    }
   },
 });
 
@@ -36,8 +66,12 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // Gera chave única para evitar sobrescrita de arquivos com o mesmo nome
-  const sanitizedOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Sanitiza acentos, espaços e caracteres especiais do nome original
+  const normalizedName = file.originalname
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+
+  const sanitizedOriginalName = path.basename(normalizedName).replace(/[^a-zA-Z0-9._-]/g, '_');
   const uniqueKey = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${sanitizedOriginalName}`;
 
   try {

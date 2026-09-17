@@ -65,3 +65,21 @@ export async function getLatestArchive(): Promise<LatestArchiveResponse | null> 
     return null;
   }
 }
+
+// busca presigned URL atualizada pelo nome do arquivo
+export async function getArchiveUrlByName(name: string): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_URL}/upload/${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.url ?? null;
+  } catch {
+    return null;
+  }
+}

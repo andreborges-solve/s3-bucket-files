@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
-import { getLatestArchive } from '../services/archive.service';
+import { getLatestArchive, getArchiveUrlByName } from '../services/archive.service';
 
 export interface UploadResult {
   url: string;
@@ -178,6 +178,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           {buttonText}
           <input
             type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.doc,.docx,.txt"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
@@ -308,10 +309,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
-          {/* botão que abre o arquivo numa nova aba */}
+          {/* botão que abre o arquivo numa nova aba buscando um link renovado na hora */}
           <button
             type="button"
-            onClick={() => window.open(tempUrl, '_blank')}
+            onClick={async () => {
+              if (uploadedInfo?.name) {
+                const refreshedUrl = await getArchiveUrlByName(uploadedInfo.name);
+                if (refreshedUrl) {
+                  window.open(refreshedUrl, '_blank');
+                  return;
+                }
+              }
+              if (tempUrl) {
+                window.open(tempUrl, '_blank');
+              }
+            }}
             style={{
               backgroundColor: '#2e3cb4',
               color: '#ffffff',
