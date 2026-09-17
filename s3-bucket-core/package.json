@@ -5,8 +5,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
+    "test": "jest --verbose",
     "test-s3": "node src/test/bucket-test.js"
   },
   "keywords": [],
@@ -28,9 +29,15 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^7.2.1",
+    "aws-sdk-client-mock": "^4.1.0",
+    "jest": "^30.5.1",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.12",
     "tsx": "^4.23.12",
     "typescript": "^5.4.0"
   },

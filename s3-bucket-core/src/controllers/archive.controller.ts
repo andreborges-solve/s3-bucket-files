@@ -88,7 +88,6 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
       new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: uniqueKey,
-        ResponseContentDisposition: `inline; filename="${encodeURIComponent(originalName)}"`,
       }),
       { expiresIn: EXPIRES_IN }
     );
@@ -104,7 +103,8 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     res.status(200).json({
       message: 'Arquivo enviado com sucesso',
       url: fileUrl,
-      name: file.originalname,
+      name: uniqueKey,
+      originalName: file.originalname,
       size: file.size,
       enviadoPor: usuarioLogado?.email,
     });
@@ -125,7 +125,6 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
 
   // Previne path traversal atacando o parâmetro de nome do arquivo
   const safeKey = path.basename(name);
-  const displayName = safeKey.includes('-') ? safeKey.split('-').slice(2).join('-') : safeKey;
 
   try {
     const fileUrl = await getSignedUrl(
@@ -133,7 +132,6 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
       new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: safeKey,
-        ResponseContentDisposition: `inline; filename="${encodeURIComponent(displayName)}"`,
       }),
       { expiresIn: EXPIRES_IN }
     );
@@ -189,20 +187,18 @@ export const getLastArchive = async (req: AuthenticatedRequest, res: Response) =
     }
 
     const key = latest.Key;
-    const cleanName = key.includes('-') ? key.split('-').slice(2).join('-') : key;
 
     const fileUrl = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: key,
-        ResponseContentDisposition: `inline; filename="${encodeURIComponent(cleanName)}"`,
       }),
       { expiresIn: EXPIRES_IN }
     );
 
     res.status(200).json({
-      name: cleanName || key,
+      name: key,
       size: latest.Size ?? 0,
       uploadedAt: latest.LastModified ? latest.LastModified.toISOString() : '',
       url: fileUrl,

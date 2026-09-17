@@ -2,7 +2,6 @@ import React from 'react';
 import { FileUpload } from '../components/FileUpload';
 import { uploadArchive } from '../services/archive.service';
 
-// página principal — monta o layout centralizado e renderiza o componente de upload
 export const GerenciadorArquivos: React.FC = () => {
   return (
     <div

@@ -41,7 +41,8 @@ authRouter.get('/oauth/callback', async (req: Request, res: Response) => {
     const { code, state } = req.query as { code: string; state: string };
     console.log('[Auth] Recebido callback do Genesys. Code presente:', !!code, 'State:', state);
     const result = await authService.handleCallback(code, state);
-    const dest = `${FRONT_URL}?token=${result.token}`;
+    // token vai no fragment (#) e não na query string, pra não vazar em logs de proxy/CDN nem no header Referer
+    const dest = `${FRONT_URL}#token=${result.token}`;
     console.log('[Auth] Autenticado com sucesso! Redirecionando para:', dest);
     res.redirect(dest);
   } catch (err: any) {

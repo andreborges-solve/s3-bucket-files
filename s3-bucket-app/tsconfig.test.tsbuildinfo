@@ -1,0 +1,21 @@
+{
+    "root": [
+        "./test/app.spec.tsx",
+        "./test/filemanagerscreen.spec.tsx",
+        "./test/fileupload.spec.tsx",
+        "./test/gerenciadorbucket.spec.tsx",
+        "./test/archive.service.spec.ts",
+        "./test/setup.ts",
+        "./test/token.spec.ts",
+        "./src/app.tsx",
+        "./src/main.tsx",
+        "./src/components/filemanagerscreen.tsx",
+        "./src/components/fileupload.tsx",
+        "./src/pages/gerenciadorbucket.tsx",
+        "./src/services/archive.service.ts",
+        "./src/startup/systemcheck.ts",
+        "./src/types/file.ts",
+        "./src/utils/token.ts"
+    ],
+    "version": "6.0.3"
+}

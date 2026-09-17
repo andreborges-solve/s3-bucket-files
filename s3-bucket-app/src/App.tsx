@@ -3,25 +3,9 @@ import GerenciadorBucket from './pages/GerenciadorBucket';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Slide from '@mui/material/Slide';
+import { parseTokenData } from './utils/token';
 
 const AUTH_LOGIN_URL = '/login';
-
-// extrai o payload e valida se o JWT está expirar
-function parseTokenData(token: string | null): { email: string | null; isExpired: boolean } {
-  if (!token) return { email: null, isExpired: true };
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return { email: null, isExpired: true };
-    const jsonStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-    const data = JSON.parse(jsonStr);
-    
-    // verifica se o token expirou
-    const isExpired = Boolean(data.exp && data.exp * 1000 < Date.now());
-    return { email: data.email || null, isExpired };
-  } catch {
-    return { email: null, isExpired: true };
-  }
-}
 
 export const App: React.FC = () => {
   const [pronto, setPronto] = useState(false);
@@ -29,9 +13,9 @@ export const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    // se voltou do Genesys com o token na URL, salva e limpa a URL
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    // se voltou do Genesys com o token no fragment da URL, salva e limpa a URL
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const token = hashParams.get('token');
     if (token) {
       localStorage.setItem('token', token);
       window.history.replaceState({}, '', '/');

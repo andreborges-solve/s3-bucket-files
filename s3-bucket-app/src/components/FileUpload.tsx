@@ -48,7 +48,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     let active = true;
     getLatestArchive().then((latest) => {
       if (!active || !latest) return;
-      
+
       let localDateStr = '';
       if (latest.uploadedAt) {
         const parsedDate = new Date(latest.uploadedAt);
@@ -298,7 +298,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </span>
             {uploadedInfo ? (
               <>
-                <span style={{ fontWeight: 600 }}>{uploadedInfo.name}</span>
+                <span style={{ fontWeight: 600 }}>
+                  {uploadedInfo.name.includes('-') ? uploadedInfo.name.split('-').slice(2).join('-') : uploadedInfo.name}
+                </span>
                 <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
                 <span>{formatFileSize(uploadedInfo.size)}</span>
                 <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
@@ -309,7 +311,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
-          {/* botão que abre o arquivo numa nova aba buscando um link renovado na hora */}
+          {/* botão que abre o arquivo em uma nova aba buscando um link renovado na hora */}
           <button
             type="button"
             onClick={async () => {
