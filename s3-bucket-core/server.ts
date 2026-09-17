@@ -8,7 +8,12 @@ import authRouter from './src/auth/auth.controller';
 import { cleanExpiredBucketFiles } from './src/controllers/bucket.controller';
 
 const app = express();
-app.use(cors());
+
+const allowedOrigin = process.env.FRONT_URL ?? 'http://localhost';
+app.use(cors({
+  origin: allowedOrigin,
+  credentials: true,
+}));
 app.use(express.json());
 
 // Log de todas as requisições que chegam ao backend

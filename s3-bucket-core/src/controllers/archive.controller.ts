@@ -18,7 +18,7 @@ const s3Client = new S3Client({
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
 const EXPIRES_IN = parseInt(process.env.PRESIGNED_URL_EXPIRES_IN ?? '300', 10);
 
-// memoryStorage com limites de tamanho de arquivo (max 50MB) para evitar crash de memória
+// memoryStorage com limites de tamanho de arquivo max 50MB para evitar crash de memória
 export const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -48,9 +48,14 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
       ContentType: file.mimetype,
     }));
 
+    const originalName = file.originalname;
     const fileUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: uniqueKey }),
+      new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: uniqueKey,
+        ResponseContentDisposition: `inline; filename="${encodeURIComponent(originalName)}"`,
+      }),
       { expiresIn: EXPIRES_IN }
     );
 
@@ -65,7 +70,7 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     res.status(200).json({
       message: 'Arquivo enviado com sucesso',
       url: fileUrl,
-      name: uniqueKey,
+      name: file.originalname,
       size: file.size,
       enviadoPor: usuarioLogado?.email,
     });
@@ -86,11 +91,16 @@ export const getArchive = async (req: AuthenticatedRequest, res: Response) => {
 
   // Previne path traversal atacando o parâmetro de nome do arquivo
   const safeKey = path.basename(name);
+  const displayName = safeKey.includes('-') ? safeKey.split('-').slice(2).join('-') : safeKey;
 
   try {
     const fileUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: safeKey }),
+      new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: safeKey,
+        ResponseContentDisposition: `inline; filename="${encodeURIComponent(displayName)}"`,
+      }),
       { expiresIn: EXPIRES_IN }
     );
 
@@ -144,14 +154,21 @@ export const getLastArchive = async (req: AuthenticatedRequest, res: Response) =
       return;
     }
 
+    const key = latest.Key;
+    const cleanName = key.includes('-') ? key.split('-').slice(2).join('-') : key;
+
     const fileUrl = await getSignedUrl(
       s3Client,
-      new GetObjectCommand({ Bucket: BUCKET_NAME, Key: latest.Key }),
+      new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        ResponseContentDisposition: `inline; filename="${encodeURIComponent(cleanName)}"`,
+      }),
       { expiresIn: EXPIRES_IN }
     );
 
     res.status(200).json({
-      name: latest.Key,
+      name: cleanName || key,
       size: latest.Size ?? 0,
       uploadedAt: latest.LastModified ? latest.LastModified.toISOString() : '',
       url: fileUrl,

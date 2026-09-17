@@ -32,6 +32,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   // arquivo selecionado pelo usuário
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // carregar último arquivo
   const [tempUrl, setTempUrl] = useState<string | null>(null);
@@ -71,31 +73,45 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   async function handleEnviar() {
     if (!selectedFile) return;
 
-    if (onUploadClick) {
-      const res = await onUploadClick(selectedFile);
-      if (!res) return; // Se falhou o upload, não exibe nada falso
+    setIsUploading(true);
+    setErrorMessage(null);
 
-      const now = new Date().toLocaleString('pt-BR');
-      let finalUrl = '';
-      let infoName = selectedFile.name;
-      let infoSize = selectedFile.size;
+    try {
+      if (onUploadClick) {
+        const res = await onUploadClick(selectedFile);
+        if (!res) {
+          setErrorMessage('Falha ao realizar o upload. Verifique o tamanho do arquivo (máx 50MB) ou sua conexão.');
+          setIsUploading(false);
+          return;
+        }
 
-      if (typeof res === 'string') {
-        finalUrl = res;
-      } else {
-        finalUrl = res.url;
-        infoName = res.name || selectedFile.name;
-        infoSize = res.size ?? selectedFile.size;
+        const now = new Date().toLocaleString('pt-BR');
+        let finalUrl = '';
+        let infoName = selectedFile.name;
+        let infoSize = selectedFile.size;
+
+        if (typeof res === 'string') {
+          finalUrl = res;
+        } else {
+          finalUrl = res.url;
+          infoName = res.name || selectedFile.name;
+          infoSize = res.size ?? selectedFile.size;
+        }
+
+        const info = {
+          name: infoName,
+          size: infoSize,
+          uploadedAt: now,
+        };
+
+        setUploadedInfo(info);
+        setTempUrl(finalUrl);
+        setSelectedFile(null);
       }
-
-      const info = {
-        name: infoName,
-        size: infoSize,
-        uploadedAt: now,
-      };
-
-      setUploadedInfo(info);
-      setTempUrl(finalUrl);
+    } catch {
+      setErrorMessage('Ocorreu um erro inesperado ao enviar o arquivo.');
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -103,6 +119,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
+    setErrorMessage(null);
   }
 
   return (
@@ -195,26 +212,46 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           )}
         </div>
 
-        {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
+        {/* botão de envio — fica desabilitado até ter um arquivo selecionado ou durante upload */}
         <button
           type="button"
           onClick={handleEnviar}
-          disabled={!selectedFile}
+          disabled={!selectedFile || isUploading}
           style={{
-            backgroundColor: selectedFile ? '#2e3cb4' : '#d0d5dd',
+            backgroundColor: selectedFile && !isUploading ? '#2e3cb4' : '#d0d5dd',
             color: '#ffffff',
             border: 'none',
             fontSize: '14px',
             fontWeight: 600,
             padding: '10px 20px',
             borderRadius: '8px',
-            cursor: selectedFile ? 'pointer' : 'not-allowed',
+            cursor: selectedFile && !isUploading ? 'pointer' : 'not-allowed',
             whiteSpace: 'nowrap',
           }}
         >
-          {uploadButtonText}
+          {isUploading ? 'Enviando...' : uploadButtonText}
         </button>
       </div>
+
+      {/* Alerta de Erro Visual */}
+      {errorMessage && (
+        <div
+          style={{
+            width: '100%',
+            backgroundColor: '#fef2f2',
+            color: '#991b1b',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: 500,
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
 
       {/* bloco do último arquivo — renderizado abaixo dos controles */}
       {tempUrl && (

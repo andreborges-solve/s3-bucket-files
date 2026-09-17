@@ -46,7 +46,7 @@ authRouter.get('/oauth/callback', async (req: Request, res: Response) => {
     res.redirect(dest);
   } catch (err: any) {
     console.error('[Auth] Falha no callback OAuth:', err?.response?.data || err?.message || err);
-    res.status(401).json({ message: 'Falha na autenticação', error: err?.message });
+    res.status(401).json({ message: 'Falha na autenticação' });
   }
 });
 

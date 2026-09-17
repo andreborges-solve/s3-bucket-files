@@ -6,17 +6,20 @@ import Slide from '@mui/material/Slide';
 
 const AUTH_LOGIN_URL = '/login';
 
-// extrai o payload do JWT
-function getEmailFromToken(token: string | null): string | null {
-  if (!token) return null;
+// extrai o payload e valida se o JWT está expirar
+function parseTokenData(token: string | null): { email: string | null; isExpired: boolean } {
+  if (!token) return { email: null, isExpired: true };
   try {
     const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
+    if (!payloadBase64) return { email: null, isExpired: true };
     const jsonStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
     const data = JSON.parse(jsonStr);
-    return data.email || null;
+    
+    // verifica se o token expirou
+    const isExpired = Boolean(data.exp && data.exp * 1000 < Date.now());
+    return { email: data.email || null, isExpired };
   } catch {
-    return null;
+    return { email: null, isExpired: true };
   }
 }
 
@@ -44,9 +47,9 @@ export const App: React.FC = () => {
       return;
     }
 
-    const email = getEmailFromToken(savedToken);
-    if (!email) {
-      console.log('Auth - Token inválido ou corrompido, redirecionando para login');
+    const { email, isExpired } = parseTokenData(savedToken);
+    if (!email || isExpired) {
+      console.log('Auth - Token inválido, expirado ou corrompido, redirecionando para login');
       localStorage.removeItem('token');
       window.location.href = AUTH_LOGIN_URL;
       return;

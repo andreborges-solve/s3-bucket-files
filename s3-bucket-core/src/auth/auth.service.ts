@@ -12,8 +12,20 @@ export class AuthService {
 
   constructor(private readonly userService: UserService) {}
 
+  // limpa states expurgados da memória
+  private cleanExpiredPkceEntries() {
+    const now = Date.now();
+    for (const [state, entry] of this.pkceStore.entries()) {
+      if (entry.expiresAt <= now) {
+        this.pkceStore.delete(state);
+      }
+    }
+  }
+
   // gera URL de login PKCE
   generateLoginUrl(): string {
+    this.cleanExpiredPkceEntries();
+
     const state = crypto.randomBytes(16).toString('hex');
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
@@ -38,6 +50,8 @@ export class AuthService {
 
   // processa o callback, valida PKCE e autentica o usuário
   async handleCallback(code: string, state: string) {
+    this.cleanExpiredPkceEntries();
+
     const pkce = this.pkceStore.get(state);
     if (!pkce || pkce.expiresAt <= Date.now()) {
       this.pkceStore.delete(state);
@@ -78,15 +92,18 @@ export class AuthService {
         displayName: profile.name || profile.username,
       });
 
+      const secret = process.env.JWT_SECRET || 'chave_secreta_jwt';
+
       // emite o JWT da aplicação
       const token = jwt.sign(
         { sub: user.id, email: user.email, displayName: user.displayName },
-        process.env.JWT_SECRET ?? 'chave_secreta_jwt',
+        secret,
         { expiresIn: '8h' },
       );
 
       return { token, user };
-    } catch {
+    } catch (error: any) {
+      console.error('[AuthService] Erro na requisição Genesys:', error?.response?.data || error?.message || error);
       throw new Error('Erro ao autenticar com Genesys Cloud');
     }
   }
