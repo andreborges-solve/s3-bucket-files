@@ -39,6 +39,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [tempUrl, setTempUrl] = useState<string | null>(null);
   const [uploadedInfo, setUploadedInfo] = useState<{
     name: string;
+    key: string;
     size: number;
     uploadedAt: string;
   } | null>(null);
@@ -57,9 +58,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           : latest.uploadedAt;
       }
 
+      const displayName = (latest as any).originalName || latest.name;
+      const fileKey = (latest as any).key || latest.name;
+
       setTempUrl(latest.url);
       setUploadedInfo({
-        name: latest.name,
+        name: displayName,
+        key: fileKey,
         size: latest.size,
         uploadedAt: localDateStr,
       });
@@ -80,7 +85,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       if (onUploadClick) {
         const res = await onUploadClick(selectedFile);
         if (!res) {
-          setErrorMessage('Falha ao realizar o upload. Verifique o tamanho do arquivo (máx 50MB) ou sua conexão.');
+          setErrorMessage('Falha ao realizar o upload. Verifique o tamanho do arquivo (máx 120MB) ou sua conexão.');
           setIsUploading(false);
           return;
         }
@@ -88,18 +93,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         const now = new Date().toLocaleString('pt-BR');
         let finalUrl = '';
         let infoName = selectedFile.name;
+        let fileKey = selectedFile.name;
         let infoSize = selectedFile.size;
 
         if (typeof res === 'string') {
           finalUrl = res;
         } else {
           finalUrl = res.url;
-          infoName = res.name || selectedFile.name;
+          infoName = (res as any).originalName || res.name || selectedFile.name;
+          fileKey = (res as any).key || res.name || selectedFile.name;
           infoSize = res.size ?? selectedFile.size;
         }
 
         const info = {
           name: infoName,
+          key: fileKey,
           size: infoSize,
           uploadedAt: now,
         };
@@ -118,6 +126,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   // captura o arquivo quando o usuário seleciona pelo input
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
+    if (file && file.size > 120 * 1024 * 1024) {
+      setErrorMessage('O arquivo selecionado excede o limite máximo permitido de 120MB.');
+      setSelectedFile(null);
+      e.target.value = '';
+      return;
+    }
     setSelectedFile(file);
     setErrorMessage(null);
   }
@@ -299,7 +313,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             {uploadedInfo ? (
               <>
                 <span style={{ fontWeight: 600 }}>
-                  {uploadedInfo.name.includes('-') ? uploadedInfo.name.split('-').slice(2).join('-') : uploadedInfo.name}
+                  {uploadedInfo.name}
                 </span>
                 <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
                 <span>{formatFileSize(uploadedInfo.size)}</span>
@@ -315,8 +329,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           <button
             type="button"
             onClick={async () => {
-              if (uploadedInfo?.name) {
-                const refreshedUrl = await getArchiveUrlByName(uploadedInfo.name);
+              const targetKey = uploadedInfo?.key || uploadedInfo?.name;
+              if (targetKey) {
+                const refreshedUrl = await getArchiveUrlByName(targetKey);
                 if (refreshedUrl) {
                   window.open(refreshedUrl, '_blank');
                   return;

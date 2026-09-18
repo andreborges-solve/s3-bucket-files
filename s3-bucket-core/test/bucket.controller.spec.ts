@@ -1,19 +1,23 @@
 import { mockClient } from 'aws-sdk-client-mock';
-import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { cleanExpiredBucketFiles } from '../src/controllers/bucket.controller';
 
 const s3Mock = mockClient(S3Client);
 
+jest.mock('../src/services/archive.service', () => ({
+  buscarArquivosExpirados: jest.fn(),
+  removerArquivosPorIds: jest.fn().mockResolvedValue(1),
+}));
+
 describe('bucket.controller - cleanExpiredBucketFiles', () => {
   beforeEach(() => {
     s3Mock.reset();
+    jest.clearAllMocks();
   });
 
   it('retorna deletedCount 0 se o bucket estiver vazio', async () => {
-    s3Mock.on(ListObjectsV2Command).resolves({
-      Contents: [],
-      IsTruncated: false,
-    });
+    const { buscarArquivosExpirados } = jest.requireMock('../src/services/archive.service');
+    buscarArquivosExpirados.mockResolvedValueOnce([]);
 
     const result = await cleanExpiredBucketFiles();
 
@@ -22,12 +26,8 @@ describe('bucket.controller - cleanExpiredBucketFiles', () => {
   });
 
   it('não deleta arquivos com menos de 30 dias', async () => {
-    const recentDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // 5 dias atrás
-
-    s3Mock.on(ListObjectsV2Command).resolves({
-      Contents: [{ Key: 'relatorio-recente.pdf', LastModified: recentDate }],
-      IsTruncated: false,
-    });
+    const { buscarArquivosExpirados } = jest.requireMock('../src/services/archive.service');
+    buscarArquivosExpirados.mockResolvedValueOnce([]);
 
     const result = await cleanExpiredBucketFiles();
 
@@ -36,44 +36,24 @@ describe('bucket.controller - cleanExpiredBucketFiles', () => {
   });
 
   it('deleta arquivos com mais de 30 dias', async () => {
-    const expiredDate = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000); // 40 dias atrás
-
-    s3Mock.on(ListObjectsV2Command).resolves({
-      Contents: [{ Key: 'relatorio-antigo.pdf', LastModified: expiredDate }],
-      IsTruncated: false,
-    });
+    const { buscarArquivosExpirados, removerArquivosPorIds } = jest.requireMock('../src/services/archive.service');
+    buscarArquivosExpirados.mockResolvedValueOnce([
+      {
+        id_ficha: 10,
+        uploaded_by: 'autor@empresa.com',
+        filename: 'relatorio-antigo.pdf',
+        s3_key: 'relatorio-antigo.pdf',
+        file_size: 500,
+      },
+    ]);
 
     s3Mock.on(DeleteObjectsCommand).resolves({});
 
     const result = await cleanExpiredBucketFiles();
 
     expect(result.deletedCount).toBe(1);
-    expect(result.files).toBeDefined();
     expect(result.files).toContain('relatorio-antigo.pdf');
     expect(s3Mock.commandCalls(DeleteObjectsCommand).length).toBe(1);
-  });
-
-  it('suporta paginação ao varrer arquivos expirados', async () => {
-    const expiredDate = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000);
-
-    s3Mock
-      .on(ListObjectsV2Command)
-      .resolvesOnce({
-        Contents: [{ Key: 'pag1-antigo.pdf', LastModified: expiredDate }],
-        IsTruncated: true,
-        NextContinuationToken: 'token-page-2',
-      })
-      .resolvesOnce({
-        Contents: [{ Key: 'pag2-antigo.pdf', LastModified: expiredDate }],
-        IsTruncated: false,
-      });
-
-    s3Mock.on(DeleteObjectsCommand).resolves({});
-
-    const result = await cleanExpiredBucketFiles();
-
-    expect(result.deletedCount).toBe(2);
-    expect(result.files).toContain('pag1-antigo.pdf');
-    expect(result.files).toContain('pag2-antigo.pdf');
+    expect(removerArquivosPorIds).toHaveBeenCalledWith([10]);
   });
 });

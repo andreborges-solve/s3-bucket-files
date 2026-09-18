@@ -1,142 +1,192 @@
 # UploadAnexosAWS (S3 Bucket Files)
 
-Aplicação corporativa para upload de arquivos com armazenamento direto em bucket **AWS S3**, geração de URLs pré-assinadas temporárias e autenticação OAuth2 PKCE via **Genesys Cloud**.
+Aplicação corporativa para upload, consulta e retenção de arquivos com armazenamento direto em bucket **AWS S3**, persistência de metadados em **PostgreSQL**, geração de **URLs pré-assinadas temporárias** e autenticação OAuth2 PKCE via **Genesys Cloud**.
 
 ---
 
-## ATENÇÃO: BRANCH EM PRODUÇÃO: main
+## 📌 Principais Funcionalidades
 
-## O que a aplicação faz
-
-- **Autenticação:** Proteção por fluxo OAuth2 Authorization Code PKCE via Genesys Cloud e geração de token JWT de sessão.
-- **Upload Seguro:** Envio direto do arquivo (via memória) para o bucket AWS S3 configurado.
-- **Visualização do Último Arquivo:** Ao carregar ou atualizar a tela (F5), a aplicação consulta o bucket e exibe os dados e o link do último arquivo adicionado.
-- **URLs Pré-assinadas:** Gera links temporários e seguros da AWS S3 para download/visualização sem expor o bucket publicamente.
-- **Retenção e Limpeza Automática:** Rotina diária no backend que expurga do bucket arquivos com mais de 30 dias de armazenamento.
-- **Proxy Reverso Integrado:** O frontend (Vite) atua como gateway de entrada na porta 80, repassando chamadas de API e autenticação internamente para o backend, eliminando problemas de CORS e portas externas expostas.
+- **Autenticação Genesys Cloud:** Proteção por fluxo seguro OAuth2 Authorization Code PKCE via Genesys Cloud e emissão de token JWT de sessão.
+- **Armazenamento Seguro em AWS S3:** Upload em memória com suporte a arquivos de até **120MB** (PDF, Imagens, Planilhas, Documentos e Zip) organizados sob a pasta virtual fixa `arquivos/`.
+- **Persistência e Auditoria em PostgreSQL:** Registro de metadados completos de cada arquivo (`uploaded_by`, `filename`, `s3_key`, `file_size`, `created_at`, `expires_at`).
+- **URLs Pré-assinadas Temporárias:** Acesso seguro direto da AWS S3 com tempo de expiração configurável (máximo de 7 dias), sem expor o bucket publicamente.
+- **Visualização do Arquivo Mais Recente:** Consulta rápida via banco de dados (`ORDER BY created_at DESC LIMIT 1`) exibindo dados e link com renovação automática da URL assinada.
+- **Política de Retenção e Limpeza Automática:** Rotina programada no backend executada no boot e a cada 24 horas, expurgando do S3 e do banco de dados os arquivos com mais de 30 dias (`expires_at <= NOW()`).
 
 ---
 
-## Estrutura do projeto
+## 🏗️ Estrutura do Projeto
 
 ```text
 s3-bucket-files/
-├── docker-compose.yml     → Orquestração Docker dos containers (frontend na 80, backend na 3000)
-├── README.md              → Documentação do projeto
-├── s3-bucket-app/         → Frontend React 19 + TypeScript + Vite + Material UI
-│   ├── src/               → Telas, componentes e serviços de upload/autenticação
-│   ├── Dockerfile         → Build de produção do frontend rodando na porta 80
-│   └── vite.config.ts     → Proxy reverso para API e configuração de allowedHosts
-└── s3-bucket-core/        → Backend Node.js 20 + Express + TypeScript + AWS SDK v3
-    ├── src/               → Controllers, rotas, autenticação Genesys e serviços S3
-    ├── Dockerfile         → Build de produção do backend (porta 3000)
-    └── .env.example       → Template com as variáveis de ambiente necessárias
+├── docker-compose.yml         → Orquestração dos containers (database, backend e frontend)
+├── README.md                  → Documentação completa da aplicação
+├── database/
+│   └── init.sql               → DDL da tabela 'arquivos' e índices de performance
+├── s3-bucket-app/             → Frontend React 19 + TypeScript + Vite + Material UI
+│   ├── src/
+│   │   ├── components/        → Componente de upload com validação de 120MB e card do último arquivo
+│   │   ├── pages/             → Tela de gerenciamento de anexos
+│   │   └── services/          → Serviços de API e autenticação
+│   ├── test/                  → Testes unitários do frontend (Vitest + Testing Library)
+│   ├── Dockerfile             → Imagem de produção do frontend na porta 80
+│   └── vite.config.ts         → Configuração de proxy e allowedHosts
+└── s3-bucket-core/            → Backend Node.js 20 + Express + TypeScript + PostgreSQL + AWS SDK v3
+    ├── database.ts            → Pool de conexão com o banco de dados PostgreSQL
+    ├── server.ts              → Ponto de entrada, agendamento de limpeza e tratamento de erros global
+    ├── src/
+    │   ├── auth/              → Fluxo PKCE Genesys, geração e validação de JWT
+    │   ├── controllers/       → Controllers de upload, download, rollback e bucket cleanup
+    │   ├── routes/            → Definição das rotas com validação de limites
+    │   ├── services/          → Operações SQL na tabela 'arquivos' e regras de negócio
+    │   └── startup/           → Health checks automáticos no boot (Genesys, S3, DB, Rotas)
+    ├── test/                  → Testes unitários do backend (Jest) e script CLI do S3
+    ├── Dockerfile             → Imagem de produção do backend na porta 3000
+    └── .env.example           → Modelo das variáveis de ambiente necessárias
 ```
 
 ---
 
-## Como Funcionam as Credenciais e Variáveis de Ambiente
+## ⚙️ Variáveis de Ambiente (`.env`)
 
-As configurações sensíveis ficam centralizadas no arquivo `.env` do backend (`s3-bucket-core/.env`). **Nunca comite chaves ou segredos reais no repositório**.
+As configurações sensíveis ficam no arquivo `s3-bucket-core/.env`. Utilize o modelo em `s3-bucket-core/.env.example`.
 
-### 1. Armazenamento AWS S3
-- `AWS_ACCESS_KEY_ID`: Identificador da chave de acesso IAM na AWS com permissões de leitura/escrita no bucket.
-- `AWS_SECRET_ACCESS_KEY`: Chave secreta correspondente ao Access Key ID da AWS.
-- `AWS_REGION`: Região onde o bucket S3 está hospedado (ex: `us-east-1`).
-- `AWS_BUCKET_NAME`: Nome do bucket S3 onde os anexos são guardados.
-- `PRESIGNED_URL_EXPIRES_IN`: Tempo de validade do link temporário de download/visualização em segundos (máximo de `604800` segundos = 7 dias).
+### 1. Bucket AWS S3
+- `AWS_ACCESS_KEY_ID`: Chave de acesso IAM da AWS com permissão no bucket.
+- `AWS_SECRET_ACCESS_KEY`: Chave secreta correspondente da AWS.
+- `AWS_REGION`: Região AWS onde o bucket está criado (ex: `us-east-1`).
+- `AWS_BUCKET_NAME`: Nome do bucket (ex: `rede-americas-dados`).
+- `PRESIGNED_URL_EXPIRES_IN`: Validade do link pré-assinado em segundos (`604800` = 7 dias).
 
 ### 2. Autenticação OAuth2 PKCE (Genesys Cloud)
-- `GENESYS_CLIENT_ID`: ID da integração OAuth criada no painel de administração da Genesys Cloud.
-- `GENESYS_REGION`: Domínio regional da Genesys Cloud (ex: `sae1.pure.cloud`).
-- `GENESYS_OAUTH_REDIRECT_URI`: Endereço exato para onde a Genesys redireciona após o usuário logar.
-  > **Atenção:** Esta mesma URL deve estar cadastrada no campo **Authorized redirect URIs** no painel da Genesys Cloud.
-  > - Localmente: `http://localhost:3000/oauth/callback`
-  > - Em Produção / Servidor: `https://<seu-dominio>/oauth/callback`
-- `JWT_SECRET`: Chave secreta interna para assinar os tokens de sessão JWT gerados para o usuário autenticado.
-- `FRONT_URL`: Endereço do frontend para onde o backend redireciona o usuário após a conclusão do login com o token.
-  > - Localmente: `http://localhost`
-  > - Em Produção / Servidor: `https://<seu-dominio>`
+- `GENESYS_CLIENT_ID`: Client ID da integração OAuth criada na Genesys Cloud.
+- `GENESYS_REGION`: Região da Genesys (ex: `sae1.pure.cloud`).
+- `GENESYS_OAUTH_REDIRECT_URI`: URL de callback cadastrada na Genesys:
+  - **Desenvolvimento:** `http://localhost:3000/oauth/callback`
+  - **Produção:** `https://<seu-dominio>/oauth/callback`
+- `JWT_SECRET`: Chave secreta para assinar os tokens JWT de sessão (*em produção, use uma chave forte e aleatória*).
+- `FRONT_URL`: URL do frontend para onde o backend redireciona após o login:
+  - **Desenvolvimento:** `http://localhost:5173`
+  - **Produção:** `https://<seu-dominio>`
+
+### 3. Banco de Dados PostgreSQL
+- `DB_HOST`: 
+- `DB_PORT`: 
+- `DB_DATABASE`: 
+- `DB_USERNAME`: 
+- `DB_PASSWORD`: 
+- `DB_SCHEMA`: 
 
 ---
 
-## Endpoints da API
+## 🚀 Como Executar
 
-### Autenticação (Genesys PKCE)
-- `GET /login`: Redireciona o usuário para a tela de login da Genesys Cloud com os parâmetros PKCE (`code_challenge` e `state`).
-- `GET /logout`: Efetua o logout da sessão oficial da Genesys Cloud.
-- `GET /oauth/callback`: Callback recebido da Genesys; valida o PKCE, obtém o token, busca o usuário e redireciona de volta para o frontend com o token de sessão.
+### Opção 1: Via Docker Compose (Recomendado para Produção / EC2)
 
-### Upload e Arquivos (Protegidos por Bearer JWT)
-- `POST /api/upload`: Recebe o arquivo via `multipart/form-data` e envia diretamente para o S3.
-- `GET /api/upload/latest`: Consulta o bucket e retorna os metadados com a URL pré-assinada do arquivo mais recente.
-- `GET /api/upload/:name`: Gera uma nova URL pré-assinada para um arquivo específico pelo nome.
-- `GET /api`: Health check da API.
+1. Configure as variáveis de produção no arquivo `s3-bucket-core/.env`:
+   - Atualize `GENESYS_OAUTH_REDIRECT_URI` e `FRONT_URL` para o domínio oficial de produção.
+   - Defina um `JWT_SECRET` seguro.
 
----
-
-## Como Rodar
-
-### Opção 1: Via Docker Compose (Produção ou Servidor)
-
-1. Crie o arquivo `s3-bucket-core/.env` com base no `.env.example`:
-   ```bash
-   cp s3-bucket-core/.env.example s3-bucket-core/.env
-   # Preencha as variáveis com as credenciais do seu ambiente
-   ```
-
-2. Suba os containers com um único comando na raiz do projeto:
+2. Inicie todos os containers (Banco, Backend e Frontend):
    ```bash
    docker compose up -d --build
    ```
 
-- **Acesso à Aplicação:** `http://localhost` (ou o domínio/IP público configurado no servidor na porta **80**)
-- O frontend na porta 80 encaminha automaticamente as rotas `/api`, `/login` e `/oauth` para o container do backend.
+3. Verifique o status dos serviços:
+   ```bash
+   docker compose ps
+   docker compose logs -f
+   ```
 
-Para acompanhar os logs:
-```bash
-docker compose logs -f
-```
-
-Para parar os containers:
-```bash
-docker compose down
-```
+4. Para parar a aplicação:
+   ```bash
+   docker compose down
+   ```
 
 ---
 
-### Opção 2: Localmente (Modo Desenvolvimento)
+### Opção 2: Desenvolvimento Local
 
-#### 1. Backend (`s3-bucket-core`)
+#### 1. Banco de Dados (PostgreSQL)
+Inicie o container do banco:
+```bash
+docker compose up -d database
+```
+
+#### 2. Backend (`s3-bucket-core`)
 ```bash
 cd s3-bucket-core
 npm install
 npm run dev
 ```
-O servidor backend iniciará na porta `3000`.
+O servidor iniciará na porta `3000` com os testes automáticos de conectividade (S3, Genesys e Banco).
 
-#### 2. Frontend (`s3-bucket-app`)
+#### 3. Frontend (`s3-bucket-app`)
 Em outro terminal:
 ```bash
 cd s3-bucket-app
 npm install
 npm run dev
 ```
-O frontend iniciará na porta `5173` e fará proxy automático para a porta `3000` do backend.
+O frontend iniciará na porta `5173` e fará proxy automático para o backend.
 
 ---
 
-## Script de Teste do S3
+## 🧪 Testes
 
-O backend conta com um script CLI para testar a conectividade e operações com o bucket sem precisar subir a interface:
+### Backend (`s3-bucket-core`)
+Suíte de testes em Jest cobrindo autenticação, middleware, permissões, upload, limite de tamanho, rollback, limpeza de expirados e segurança:
+```bash
+cd s3-bucket-core
+npm test
+```
+
+### Frontend (`s3-bucket-app`)
+Suíte de testes em Vitest + React Testing Library cobrindo renderização, seleção de arquivos, limites de 120MB, exibição do último arquivo e links:
+```bash
+cd s3-bucket-app
+npm test
+```
+
+### Build de Produção
+Para validar a compilação de produção de ambos os projetos:
+```bash
+# Backend
+cd s3-bucket-core && npm run build
+
+# Frontend
+cd ../s3-bucket-app && npm run build
+```
+
+---
+
+## 🛠️ Script de Gestão S3 + Banco (`test-s3`)
+
+O projeto inclui um CLI para conferência e manutenção do bucket S3 e banco de dados:
 
 ```bash
 cd s3-bucket-core
 npm run test-s3
 ```
-O script permite:
-1. Testar conexão com o bucket S3
-2. Fazer upload de um arquivo de teste
-3. Listar arquivos armazenados
-4. Gerar URL pré-assinada
-5. Deletar arquivo
+
+**Funcionalidades:**
+1. **Testar Conexão:** Valida conectividade simultânea com o S3 e o PostgreSQL.
+2. **Listar Arquivos:** Lista os arquivos no bucket S3 relacionando-os com os IDs e autores gravados no banco de dados.
+3. **Apagar Arquivos:** Permite apagar um arquivo específico ou limpar o bucket em lote, sincronizando a exclusão física no S3 com a remoção dos registros na tabela `arquivos` do Postgres.
+
+---
+
+## 📋 Checklist de Deploy em Produção (AWS EC2)
+
+Antes de realizar o commit e deploy final:
+
+1. [ ] **Variáveis de Ambiente (`.env`):**
+   - Descomentar as URLs de produção (`GENESYS_OAUTH_REDIRECT_URI` e `FRONT_URL`) com o domínio HTTPS correto.
+   - Definir um `JWT_SECRET` seguro diferente do padrão de desenvolvimento.
+2. [ ] **Painel Genesys Cloud:**
+   - Garantir que a URL de produção (`https://<seu-dominio>/oauth/callback`) está cadastrada na lista de redirecionamentos autorizados do Client ID.
+3. [ ] **Segurança de Credenciais:**
+   - O arquivo `.env` nunca deve ser comitado (protegido pelo `.gitignore`).
+4. [ ] **Portas do Servidor (Security Group AWS):**
+   - Porta `80` (HTTP) e `443` (HTTPS) liberadas para tráfego web público.
+   - Porta `5435` / `5432` restrita internamente para a aplicação.

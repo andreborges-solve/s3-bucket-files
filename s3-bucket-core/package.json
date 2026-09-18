@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "jest --verbose",
-    "test-s3": "node src/test/bucket-test.js"
+    "test-s3": "node test/bucket-test.js"
   },
   "keywords": [],
   "author": "André Borges",
@@ -24,7 +24,8 @@
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -33,6 +34,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "aws-sdk-client-mock": "^4.1.0",
     "jest": "^30.5.1",

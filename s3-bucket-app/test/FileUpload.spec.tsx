@@ -55,7 +55,7 @@ describe('FileUpload', () => {
   it('carrega o último arquivo do bucket ao abrir a tela e permite visualizar com a url renovada', async () => {
     const user = userEvent.setup();
     mockedGetLatestArchive.mockResolvedValue({
-      name: '123-abc-relatorio.pdf',
+      name: 'relatorio.pdf',
       size: 1024,
       uploadedAt: '2026-01-01T10:00:00Z',
       url: 'https://s3/antiga.pdf',
@@ -69,7 +69,7 @@ describe('FileUpload', () => {
 
     await user.click(screen.getByRole('button', { name: 'Visualizar' }));
 
-    expect(mockedGetArchiveUrlByName).toHaveBeenCalledWith('123-abc-relatorio.pdf');
+    expect(mockedGetArchiveUrlByName).toHaveBeenCalledWith('relatorio.pdf');
     expect(windowOpenSpy).toHaveBeenCalledWith('https://s3/renovada.pdf', '_blank');
   });
 });

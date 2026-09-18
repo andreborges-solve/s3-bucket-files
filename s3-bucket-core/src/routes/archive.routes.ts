@@ -11,7 +11,7 @@ archiveRouter.post(
     upload.single('file')(req, res, (err: any) => {
       if (err) {
         if (err.code === 'LIMIT_FILE_SIZE') {
-          res.status(400).json({ message: 'O arquivo enviado excede o limite máximo permitido de 50MB.' });
+          res.status(400).json({ message: 'O arquivo enviado excede o limite máximo permitido de 120MB.' });
           return;
         }
         res.status(400).json({ message: `Erro no upload de arquivo: ${err.message}` });
@@ -23,6 +23,6 @@ archiveRouter.post(
   postArchive
 );
 archiveRouter.get('/upload/latest', authMiddleware, getLastArchive);
-archiveRouter.get('/upload/:name', authMiddleware, getArchive);
+archiveRouter.get('/upload/:name(*)', authMiddleware, getArchive);
 
 export default archiveRouter;

@@ -1,4 +1,5 @@
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
+import { db } from '../../database';
 
 const green = '\x1b[32m';
 const reset = '\x1b[0m';
@@ -33,6 +34,15 @@ async function checkS3() {
   }
 }
 
+async function checkDB() {
+  try {
+    await db.query('SELECT NOW()');
+    ok('Conexão com banco de dados');
+  } catch (error: any) {
+    console.log(`Conexão com banco de dados: \x1b[31mfalhou ✖\x1b[0m (${error?.name || error?.message || 'erro desconhecido'})`);
+  }
+}
+
 const ROTAS = [
   'GET  /login',
   'GET  /logout',
@@ -51,5 +61,6 @@ function checkRotas() {
 export async function runSystemChecks(): Promise<void> {
   await checkGenesys();
   await checkS3();
+  await checkDB();
   checkRotas();
 }

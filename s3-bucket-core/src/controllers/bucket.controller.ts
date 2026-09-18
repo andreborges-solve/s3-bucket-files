@@ -1,4 +1,5 @@
-import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { buscarArquivosExpirados, removerArquivosPorIds } from '../services/archive.service';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -11,64 +12,43 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME ?? '';
-const RETENTION_DAYS = 30;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Rotina que faz a varredura completa e deleta qualquer arquivo com mais de 30 dias
+// rotina de consulta no banco os arquivos com expires_at <= NOW(), deleta no S3 e remove do banco
 export async function cleanExpiredBucketFiles() {
   if (!BUCKET_NAME) {
     console.log('[Bucket Cleanup] AWS_BUCKET_NAME não definido.');
     return { deletedCount: 0, files: [] };
   }
 
-  const cutoffDate = Date.now() - RETENTION_DAYS * MS_PER_DAY;
-
   try {
-    let allContents: Array<{ Key?: string; LastModified?: Date }> = [];
-    let continuationToken: string | undefined = undefined;
+    const expiredFiles = await buscarArquivosExpirados();
 
-    do {
-      const listResponse: any = await s3Client.send(
-        new ListObjectsV2Command({
-          Bucket: BUCKET_NAME,
-          ContinuationToken: continuationToken,
-        })
-      );
-
-      if (listResponse.Contents) {
-        allContents = allContents.concat(listResponse.Contents);
-      }
-
-      continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : undefined;
-    } while (continuationToken);
-
-    if (allContents.length === 0) {
-      return { deletedCount: 0, files: [] };
-    }
-
-    const expiredFiles = allContents.filter((item) => {
-      if (!item.LastModified) return false;
-      return new Date(item.LastModified).getTime() < cutoffDate;
-    });
-
-    if (expiredFiles.length === 0) {
+    if (!expiredFiles || expiredFiles.length === 0) {
       return { deletedCount: 0, files: [] };
     }
 
     const objectsToDelete = expiredFiles
-      .filter((item) => Boolean(item.Key))
-      .map((item) => ({ Key: item.Key! }));
+      .filter((item) => Boolean(item.s3_key))
+      .map((item) => ({ Key: item.s3_key }));
 
-    await s3Client.send(
-      new DeleteObjectsCommand({
-        Bucket: BUCKET_NAME,
-        Delete: { Objects: objectsToDelete },
-      })
-    );
+    if (objectsToDelete.length > 0) {
+      await s3Client.send(
+        new DeleteObjectsCommand({
+          Bucket: BUCKET_NAME,
+          Delete: { Objects: objectsToDelete },
+        })
+      );
+    }
+
+    const idsToDelete = expiredFiles
+      .filter((item) => item.id_ficha !== undefined)
+      .map((item) => item.id_ficha!);
+
+    await removerArquivosPorIds(idsToDelete);
 
     const deletedNames = objectsToDelete.map((o) => o.Key);
     console.log(
-      `[Bucket Cleanup] ${deletedNames.length} arquivo(s) com mais de ${RETENTION_DAYS} dias foram removidos:`,
+      `[Bucket Cleanup] ${deletedNames.length} arquivo(s) expirados foram removidos do S3 e do banco:`,
       deletedNames
     );
 

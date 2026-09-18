@@ -1,5 +1,5 @@
 import { mockClient } from 'aws-sdk-client-mock';
-import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { postArchive, getArchive, getLastArchive, upload } from '../src/controllers/archive.controller';
 import type { AuthenticatedRequest } from '../src/auth/auth.middleware';
@@ -9,6 +9,27 @@ const s3Mock = mockClient(S3Client);
 
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn().mockResolvedValue('https://s3.mock.url/presigned-link'),
+}));
+
+jest.mock('../src/services/archive.service', () => ({
+  salvarArquivo: jest.fn().mockResolvedValue({
+    id_ficha: 1,
+    uploaded_by: 'autor@empresa.com',
+    filename: 'Relatório Final - Medição #1.pdf',
+    s3_key: 'mock-s3-key',
+    file_size: 1024,
+    created_at: new Date('2026-09-01T10:00:00Z'),
+    expires_at: new Date('2026-10-01T10:00:00Z'),
+  }),
+  buscarUltimoArquivo: jest.fn().mockResolvedValue({
+    id_ficha: 1,
+    uploaded_by: 'autor@empresa.com',
+    filename: 'recente.pdf',
+    s3_key: 'recente.pdf',
+    file_size: 200,
+    created_at: new Date('2026-09-01T10:00:00Z'),
+    expires_at: new Date('2026-10-01T10:00:00Z'),
+  }),
 }));
 
 describe('archive.controller', () => {
@@ -81,6 +102,30 @@ describe('archive.controller', () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ message: 'Erro ao enviar arquivo para o storage' });
     });
+
+    it('faz rollback e remove o arquivo do S3 se a gravação no banco falhar', async () => {
+      jest.spyOn(console, 'error').mockImplementationOnce(() => { });
+      jest.spyOn(console, 'warn').mockImplementationOnce(() => { });
+
+      req.file = {
+        originalname: 'rollback.pdf',
+        mimetype: 'application/pdf',
+        buffer: Buffer.from('conteudo'),
+        size: 500,
+      } as any;
+
+      s3Mock.on(PutObjectCommand).resolves({});
+      s3Mock.on(DeleteObjectCommand).resolves({});
+
+      const { salvarArquivo } = jest.requireMock('../src/services/archive.service');
+      salvarArquivo.mockRejectedValueOnce(new Error('Falha no PostgreSQL'));
+
+      await postArchive(req as AuthenticatedRequest, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(s3Mock.commandCalls(PutObjectCommand).length).toBe(1);
+      expect(s3Mock.commandCalls(DeleteObjectCommand).length).toBe(1);
+    });
   });
 
   describe('getArchive', () => {
@@ -116,7 +161,8 @@ describe('archive.controller', () => {
 
   describe('getLastArchive', () => {
     it('retorna null se o bucket estiver vazio', async () => {
-      s3Mock.on(ListObjectsV2Command).resolves({ Contents: [] });
+      const { buscarUltimoArquivo } = jest.requireMock('../src/services/archive.service');
+      buscarUltimoArquivo.mockResolvedValueOnce(null);
 
       await getLastArchive(req as AuthenticatedRequest, res as Response);
 
@@ -125,14 +171,15 @@ describe('archive.controller', () => {
     });
 
     it('retorna o arquivo mais recente enviado', async () => {
-      const dataAntiga = new Date('2026-01-01T10:00:00Z');
-      const dataRecente = new Date('2026-09-01T10:00:00Z');
-
-      s3Mock.on(ListObjectsV2Command).resolves({
-        Contents: [
-          { Key: 'antigo.pdf', LastModified: dataAntiga, Size: 100 },
-          { Key: 'recente.pdf', LastModified: dataRecente, Size: 200 },
-        ],
+      const { buscarUltimoArquivo } = jest.requireMock('../src/services/archive.service');
+      buscarUltimoArquivo.mockResolvedValueOnce({
+        id_ficha: 1,
+        uploaded_by: 'autor@empresa.com',
+        filename: 'recente.pdf',
+        s3_key: 'recente.pdf',
+        file_size: 200,
+        created_at: new Date('2026-09-01T10:00:00Z'),
+        expires_at: new Date('2026-10-01T10:00:00Z'),
       });
 
       await getLastArchive(req as AuthenticatedRequest, res as Response);
@@ -146,7 +193,8 @@ describe('archive.controller', () => {
 
     it('retorna 500 se der erro ao listar arquivos do bucket', async () => {
       jest.spyOn(console, 'error').mockImplementationOnce(() => { });
-      s3Mock.on(ListObjectsV2Command).rejects(new Error('Erro de permissão no S3'));
+      const { buscarUltimoArquivo } = jest.requireMock('../src/services/archive.service');
+      buscarUltimoArquivo.mockRejectedValueOnce(new Error('Erro de conexão com o banco'));
 
       await getLastArchive(req as AuthenticatedRequest, res as Response);
 

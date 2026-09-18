@@ -1,0 +1,23 @@
+# Ambientes e credenciais locais (NUNCA COMITAR)
+.env
+.env.local
+.env.*.local
+*.env
+!s3-bucket-core/.env.example
+
+# Dependências
+node_modules/
+
+# Builds e arquivos de compilação
+dist/
+dist-ssr/
+*.tsbuildinfo
+logs/
+*.log
+
+# Editor e Sistema
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

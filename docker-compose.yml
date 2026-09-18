@@ -1,6 +1,22 @@
 name: UploadAnexosAWS
 
 services:
+  #banco de dados
+  database:
+    image: postgres:15-alpine
+    container_name: s3-bucket-db
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRES_DB=s3_bucket
+      - POSTGRES_USER=uploads4me
+      - POSTGRES_PASSWORD=uploads4me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
+
+  #s3-bucket-core
   backend:
     build:
       context: ./s3-bucket-core
@@ -13,7 +29,12 @@ services:
       - ./s3-bucket-core/.env
     environment:
       - NODE_ENV=production
+      - DB_HOST=database
+      - DB_PORT=5432
+    depends_on:
+      - database
 
+  #s3-bucket-app
   frontend:
     build:
       context: ./s3-bucket-app
@@ -27,4 +48,7 @@ services:
       - BACKEND_URL=http://backend:3000
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
 

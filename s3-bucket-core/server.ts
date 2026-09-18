@@ -25,7 +25,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const port = 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.get('/api', (_req: Request, res: Response) => {
   res.json({ status: `Aplicação rodando na porta ${port}` });
@@ -33,6 +33,15 @@ app.get('/api', (_req: Request, res: Response) => {
 
 app.use('/api', archiveRouter);
 app.use(authRouter);
+
+// Middleware de erro global para capturar qualquer exceção não tratada e responder em JSON
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+  console.error('[Global Error Handler]:', err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    message: err.message || 'Ocorreu um erro interno no servidor',
+  });
+});
 
 async function bootstrap() {
   await runSystemChecks();

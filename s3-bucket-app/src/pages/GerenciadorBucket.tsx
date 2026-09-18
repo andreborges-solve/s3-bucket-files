@@ -38,7 +38,7 @@ export const GerenciadorArquivos: React.FC = () => {
               console.log('Upload ok:', data);
               return {
                 url: data.url,
-                name: data.name || file.name,
+                name: (data as any).originalName || file.name,
                 size: data.size ?? file.size,
               };
             } catch (err) {
