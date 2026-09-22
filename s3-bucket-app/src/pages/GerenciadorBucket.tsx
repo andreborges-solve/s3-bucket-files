@@ -40,6 +40,7 @@ export const GerenciadorArquivos: React.FC = () => {
                 url: data.url,
                 name: (data as any).originalName || file.name,
                 size: data.size ?? file.size,
+                uploadedAt: data.uploadedAt,
               };
             } catch (err) {
               console.error('Erro no upload:', err);

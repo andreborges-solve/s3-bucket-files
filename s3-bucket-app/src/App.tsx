@@ -5,7 +5,7 @@ import Stack from '@mui/material/Stack';
 import Slide from '@mui/material/Slide';
 import { parseTokenData } from './utils/token';
 
-const AUTH_LOGIN_URL = '/login';
+export const AUTH_LOGIN_URL = '/login';
 
 export const App: React.FC = () => {
   const [pronto, setPronto] = useState(false);
@@ -54,9 +54,11 @@ export const App: React.FC = () => {
         <Stack
           sx={{
             width: 'auto',
-            maxWidth: '380px',
+            maxWidth: '600px',
             position: 'fixed',
             top: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
             left: 16,
             zIndex: 100,
           }}
@@ -65,10 +67,12 @@ export const App: React.FC = () => {
           <Alert
             severity="success"
             sx={{
-              backgroundColor: '#aee297',
-              color: '#25692d',
-              borderRadius: '15px',
-              border: '2px solid #99eba4',
+              backgroundColor: '#2e3cb4',
+              color: '#ffffff',
+              borderRadius: '8px',
+              '& .MuiAlert-icon': {
+                color: '#ffffff',
+              },
             }}
           >
             {userEmail

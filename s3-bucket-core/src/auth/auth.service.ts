@@ -10,7 +10,7 @@ export class AuthService {
   private readonly clientId = process.env.GENESYS_CLIENT_ID ?? '';
   private readonly redirectUri = process.env.GENESYS_OAUTH_REDIRECT_URI ?? '';
 
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   // limpa states expurgados da memória
   private cleanExpiredPkceEntries() {
@@ -92,7 +92,11 @@ export class AuthService {
         displayName: profile.name || profile.username,
       });
 
-      const secret = process.env.JWT_SECRET || 'chave_secreta_jwt';
+      const secret = process.env.JWT_SECRET;
+
+      if (!secret) {
+        throw new Error('JWT_SECRET não configurado');
+      }
 
       // emite o JWT da aplicação
       const token = jwt.sign(

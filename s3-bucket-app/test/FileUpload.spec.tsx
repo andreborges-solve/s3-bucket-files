@@ -36,6 +36,7 @@ describe('FileUpload', () => {
     expect(onUploadClick).toHaveBeenCalledWith(file);
     expect(await screen.findByText('final.pdf')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Visualizar' })).toBeInTheDocument();
+    expect(await screen.findByText('Arquivo "final.pdf" enviado com sucesso!')).toBeInTheDocument();
   });
 
   it('exibe mensagem de erro quando o backend recusa o upload', async () => {

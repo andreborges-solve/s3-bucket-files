@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS arquivos (
   filename VARCHAR(500) NOT NULL,     
   s3_key VARCHAR(500) NOT NULL,            
   file_size BIGINT,                             
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,       
-  expires_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days')
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,       
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL '30 days')
 );
 
 CREATE INDEX IF NOT EXISTS idx_arquivos_expires_at ON arquivos (expires_at);

@@ -79,7 +79,7 @@ describe('archive.service', () => {
 
       expect(result).toBeNull();
       expect(localStorage.getItem('token')).toBeNull();
-      expect(window.location.href).toBe('http://localhost:3000/login');
+      expect(window.location.href).toBe('/login');
     });
 
     it('retorna null se a chamada ao backend falhar por erro de rede', async () => {

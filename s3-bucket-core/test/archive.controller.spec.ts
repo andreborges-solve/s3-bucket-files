@@ -11,26 +11,31 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn().mockResolvedValue('https://s3.mock.url/presigned-link'),
 }));
 
-jest.mock('../src/services/archive.service', () => ({
-  salvarArquivo: jest.fn().mockResolvedValue({
-    id_ficha: 1,
-    uploaded_by: 'autor@empresa.com',
-    filename: 'Relatório Final - Medição #1.pdf',
-    s3_key: 'mock-s3-key',
-    file_size: 1024,
-    created_at: new Date('2026-09-01T10:00:00Z'),
-    expires_at: new Date('2026-10-01T10:00:00Z'),
-  }),
-  buscarUltimoArquivo: jest.fn().mockResolvedValue({
-    id_ficha: 1,
-    uploaded_by: 'autor@empresa.com',
-    filename: 'recente.pdf',
-    s3_key: 'recente.pdf',
-    file_size: 200,
-    created_at: new Date('2026-09-01T10:00:00Z'),
-    expires_at: new Date('2026-10-01T10:00:00Z'),
-  }),
-}));
+jest.mock('../src/services/archive.service', () => {
+  const actual = jest.requireActual('../src/services/archive.service');
+  return {
+    ...actual,
+    salvarArquivo: jest.fn().mockImplementation((dados) => Promise.resolve({
+      id_ficha: 1,
+      uploaded_by: dados.uploaded_by,
+      filename: dados.filename,
+      s3_key: dados.s3_key,
+      file_size: dados.file_size,
+      created_at: new Date('2026-09-01T10:00:00Z'),
+      expires_at: new Date('2026-10-01T10:00:00Z'),
+    })),
+    buscarUltimoArquivo: jest.fn().mockResolvedValue({
+      id_ficha: 1,
+      uploaded_by: 'autor@empresa.com',
+      filename: 'recente.pdf',
+      s3_key: 'recente.pdf',
+      file_size: 200,
+      created_at: new Date('2026-09-01T10:00:00Z'),
+      expires_at: new Date('2026-10-01T10:00:00Z'),
+    }),
+    buscarArquivosPorNomeBase: jest.fn().mockResolvedValue([]),
+  };
+});
 
 describe('archive.controller', () => {
   let req: Partial<AuthenticatedRequest>;
@@ -125,6 +130,30 @@ describe('archive.controller', () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(s3Mock.commandCalls(PutObjectCommand).length).toBe(1);
       expect(s3Mock.commandCalls(DeleteObjectCommand).length).toBe(1);
+    });
+
+    it('adiciona sufixo (1) se já existir um arquivo com o mesmo nome', async () => {
+      req.file = {
+        originalname: 'relatorio.pdf',
+        mimetype: 'application/pdf',
+        buffer: Buffer.from('conteudo novo'),
+        size: 500,
+      } as any;
+
+      s3Mock.on(PutObjectCommand).resolves({});
+
+      const { buscarArquivosPorNomeBase, salvarArquivo } = jest.requireMock('../src/services/archive.service');
+      buscarArquivosPorNomeBase.mockResolvedValueOnce(['relatorio.pdf']);
+
+      await postArchive(req as AuthenticatedRequest, res as Response);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      const putCallArgs = s3Mock.commandCalls(PutObjectCommand)[0].args[0].input;
+      expect(putCallArgs.Key).toBe('arquivos/relatorio (1).pdf');
+      expect(salvarArquivo).toHaveBeenCalledWith(expect.objectContaining({
+        filename: 'relatorio (1).pdf',
+        s3_key: 'arquivos/relatorio (1).pdf',
+      }));
     });
   });
 

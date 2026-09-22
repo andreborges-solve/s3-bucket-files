@@ -1,10 +1,15 @@
+import { AUTH_LOGIN_URL } from '../App'
+
 const API_URL = '/api';
 
 export interface UploadResponse {
   name: string;
   size: number;
-  ext: string;
+  ext?: string;
   url: string;
+  filename?: string;
+  originalName?: string;
+  uploadedAt?: string;
 }
 
 function getToken() {
@@ -49,7 +54,7 @@ export async function getLatestArchive(): Promise<LatestArchiveResponse | null> 
     if (response.status === 401) {
       console.warn('Token expirado ao buscar último arquivo. Redirecionando para login...');
       localStorage.removeItem('token');
-      window.location.href = 'http://localhost:3000/login';
+      window.location.href = AUTH_LOGIN_URL;
       return null;
     }
 

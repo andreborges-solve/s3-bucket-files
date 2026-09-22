@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Slide from '@mui/material/Slide';
 import { getLatestArchive, getArchiveUrlByName } from '../services/archive.service';
 
 export interface UploadResult {
   url: string;
   name?: string;
   size?: number;
+  uploadedAt?: string;
 }
 
 export interface FileUploadProps {
@@ -34,6 +38,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
 
   // carregar último arquivo
   const [tempUrl, setTempUrl] = useState<string | null>(null);
@@ -54,7 +59,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       if (latest.uploadedAt) {
         const parsedDate = new Date(latest.uploadedAt);
         localDateStr = !isNaN(parsedDate.getTime())
-          ? parsedDate.toLocaleString()
+          ? parsedDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
           : latest.uploadedAt;
       }
 
@@ -90,7 +101,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           return;
         }
 
-        const now = new Date().toLocaleString('pt-BR');
+        const now = new Date().toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
         let finalUrl = '';
         let infoName = selectedFile.name;
         let fileKey = selectedFile.name;
@@ -105,16 +122,32 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           infoSize = res.size ?? selectedFile.size;
         }
 
+        let dateFromBackend = '';
+        if (typeof res !== 'string' && res && res.uploadedAt) {
+          const parsed = new Date(res.uploadedAt);
+          dateFromBackend = !isNaN(parsed.getTime())
+            ? parsed.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : res.uploadedAt;
+        }
+
         const info = {
           name: infoName,
           key: fileKey,
           size: infoSize,
-          uploadedAt: now,
+          uploadedAt: dateFromBackend || now,
         };
 
         setUploadedInfo(info);
         setTempUrl(finalUrl);
         setSelectedFile(null);
+        setUploadSuccessMsg(`Arquivo "${infoName}" enviado com sucesso!`);
+        setTimeout(() => setUploadSuccessMsg(null), 4000);
       }
     } catch {
       setErrorMessage('Ocorreu um erro inesperado ao enviar o arquivo.');
@@ -146,6 +179,37 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         gap: '20px',
       }}
     >
+      {/* Alerta animado de sucesso no upload */}
+      <Slide in={Boolean(uploadSuccessMsg)} direction="right" mountOnEnter unmountOnExit timeout={400}>
+        <Stack
+          sx={{
+            width: 'auto',
+            maxWidth: '600px',
+            position: 'fixed',
+            top: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            left: 16,
+            zIndex: 100,
+          }}
+          spacing={2}
+        >
+          <Alert
+            severity="success"
+            sx={{
+              backgroundColor: '#2e3cb4',
+              color: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              '& .MuiAlert-icon': {
+                color: '#ffffff',
+              },
+            }}
+          >
+            {uploadSuccessMsg}
+          </Alert>
+        </Stack>
+      </Slide>
       {/* Linha com os controles de seleção e envio */}
       <div
         style={{
@@ -192,7 +256,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           {buttonText}
           <input
             type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.csv,.doc,.docx,.txt"
+            accept=".pdf,.png,.jpg,.jpeg,.svg,.tif,.tiff,.xlsx,.xls,.csv,.doc,.docx,.ppt,.pptx,.zip"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />

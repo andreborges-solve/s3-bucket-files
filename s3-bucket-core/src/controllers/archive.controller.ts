@@ -4,7 +4,7 @@ import type { Response } from 'express';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { AuthenticatedRequest } from '../auth/auth.middleware';
-import { salvarArquivo, buscarUltimoArquivo } from '../services/archive.service';
+import { salvarArquivo, buscarUltimoArquivo, buscarArquivosPorNomeBase, gerarProximoNome } from '../services/archive.service';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
@@ -67,12 +67,21 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  // Salva dentro de uma pasta fixa no S3 e no banco
-  const filename = path.basename(file.originalname);
-  const fileKey = `arquivos/${filename}`;
+  // Limpa o nome do arquivo contra path traversal
+  const originalCleanName = path.basename(file.originalname);
+  const ext = path.extname(originalCleanName);
+  const baseName = path.basename(originalCleanName, ext);
+
   let s3Uploaded = false;
+  let fileKey = '';
 
   try {
+    // Verifica se já existem arquivos com esse nome e gera sufixo (1), (2)... se necessário
+    const existentes = await buscarArquivosPorNomeBase(baseName, ext);
+    const finalFilename = gerarProximoNome(originalCleanName, existentes);
+
+    fileKey = `arquivos/${finalFilename}`;
+
     await s3Client.send(new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileKey,
@@ -84,7 +93,7 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
     // Registra os metadados no banco de dados PostgreSQL
     const registroBanco = await salvarArquivo({
       uploaded_by: usuarioLogado?.email || 'desconhecido',
-      filename: file.originalname,
+      filename: finalFilename,
       s3_key: fileKey,
       file_size: file.size,
     });
@@ -112,9 +121,13 @@ export const postArchive = async (req: AuthenticatedRequest, res: Response) => {
       message: 'Arquivo enviado com sucesso',
       url: fileUrl,
       name: fileKey,
-      originalName: file.originalname,
+      filename: finalFilename,
+      originalName: finalFilename,
       size: file.size,
       enviadoPor: usuarioLogado?.email,
+      uploadedAt: registroBanco.created_at
+        ? new Date(registroBanco.created_at).toISOString()
+        : new Date().toISOString(),
     });
   } catch (error) {
     console.error('Erro no upload S3/Banco:', error);

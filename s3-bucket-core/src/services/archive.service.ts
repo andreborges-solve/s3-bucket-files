@@ -1,4 +1,5 @@
 import { db } from '../../database';
+import path from 'path';
 
 export interface ArquivoRegistro {
   id_ficha?: number;
@@ -8,6 +9,38 @@ export interface ArquivoRegistro {
   file_size: number;
   created_at?: Date;
   expires_at?: Date;
+}
+
+// busca todos os nomes de arquivos existentes com a mesma base para identificar duplicidades
+export async function buscarArquivosPorNomeBase(baseName: string, ext: string): Promise<string[]> {
+  const query = `
+    SELECT filename FROM arquivos
+    WHERE filename = $1 OR filename LIKE $2
+  `;
+  const exact = `${baseName}${ext}`;
+  const pattern = `${baseName} (%)` + ext;
+  const { rows } = await db.query(query, [exact, pattern]);
+  return rows.map((r: { filename: string }) => r.filename);
+}
+
+// calcula o próximo nome com sufixo (1), (2), etc. se houver duplicidade
+export function gerarProximoNome(originalName: string, nomesExistentes: string[]): string {
+  if (!nomesExistentes.includes(originalName)) {
+    return originalName;
+  }
+
+  const ext = path.extname(originalName);
+  const base = path.basename(originalName, ext);
+
+  let contador = 1;
+  let novoNome = `${base} (${contador})${ext}`;
+
+  while (nomesExistentes.includes(novoNome)) {
+    contador++;
+    novoNome = `${base} (${contador})${ext}`;
+  }
+
+  return novoNome;
 }
 
 // salva o registro do arquivo no banco
