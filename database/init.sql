@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS arquivos (
 CREATE INDEX IF NOT EXISTS idx_arquivos_expires_at ON arquivos (expires_at);
 CREATE INDEX IF NOT EXISTS idx_arquivos_created_at ON arquivos (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_arquivos_s3_key ON arquivos (s3_key);
+SET timezone = 'America/Sao_Paulo';

@@ -1,7 +1,7 @@
 name: UploadAnexosAWS
 
 services:
-  #banco de dados
+  #database
   database:
     image: postgres:15-alpine
     container_name: s3-bucket-db
