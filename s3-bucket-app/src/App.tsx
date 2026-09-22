@@ -3,22 +3,9 @@ import GerenciadorBucket from './pages/GerenciadorBucket';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Slide from '@mui/material/Slide';
+import { parseTokenData } from './utils/token';
 
-const AUTH_LOGIN_URL = '/login';
-
-// extrai o payload do JWT
-function getEmailFromToken(token: string | null): string | null {
-  if (!token) return null;
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
-    const jsonStr = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-    const data = JSON.parse(jsonStr);
-    return data.email || null;
-  } catch {
-    return null;
-  }
-}
+export const AUTH_LOGIN_URL = '/login';
 
 export const App: React.FC = () => {
   const [pronto, setPronto] = useState(false);
@@ -26,9 +13,9 @@ export const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    // se voltou do Genesys com o token na URL, salva e limpa a URL
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    // se voltou do Genesys com o token no fragment da URL, salva e limpa a URL
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const token = hashParams.get('token');
     if (token) {
       localStorage.setItem('token', token);
       window.history.replaceState({}, '', '/');
@@ -44,9 +31,9 @@ export const App: React.FC = () => {
       return;
     }
 
-    const email = getEmailFromToken(savedToken);
-    if (!email) {
-      console.log('Auth - Token inválido ou corrompido, redirecionando para login');
+    const { email, isExpired } = parseTokenData(savedToken);
+    if (!email || isExpired) {
+      console.log('Auth - Token inválido, expirado ou corrompido, redirecionando para login');
       localStorage.removeItem('token');
       window.location.href = AUTH_LOGIN_URL;
       return;
@@ -67,9 +54,11 @@ export const App: React.FC = () => {
         <Stack
           sx={{
             width: 'auto',
-            maxWidth: '380px',
+            maxWidth: '600px',
             position: 'fixed',
             top: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
             left: 16,
             zIndex: 100,
           }}
@@ -78,10 +67,12 @@ export const App: React.FC = () => {
           <Alert
             severity="success"
             sx={{
-              backgroundColor: '#aee297',
-              color: '#25692d',
-              borderRadius: '15px',
-              border: '2px solid #99eba4',
+              backgroundColor: '#2e3cb4',
+              color: '#ffffff',
+              borderRadius: '8px',
+              '& .MuiAlert-icon': {
+                color: '#ffffff',
+              },
             }}
           >
             {userEmail

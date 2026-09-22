@@ -2,7 +2,6 @@ import React from 'react';
 import { FileUpload } from '../components/FileUpload';
 import { uploadArchive } from '../services/archive.service';
 
-// página principal — monta o layout centralizado e renderiza o componente de upload
 export const GerenciadorArquivos: React.FC = () => {
   return (
     <div
@@ -39,8 +38,9 @@ export const GerenciadorArquivos: React.FC = () => {
               console.log('Upload ok:', data);
               return {
                 url: data.url,
-                name: data.name || file.name,
+                name: (data as any).originalName || file.name,
                 size: data.size ?? file.size,
+                uploadedAt: data.uploadedAt,
               };
             } catch (err) {
               console.error('Erro no upload:', err);

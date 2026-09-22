@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
-import { getLatestArchive } from '../services/archive.service';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
+import Slide from '@mui/material/Slide';
+import { getLatestArchive, getArchiveUrlByName } from '../services/archive.service';
 
 export interface UploadResult {
   url: string;
   name?: string;
   size?: number;
+  uploadedAt?: string;
 }
 
 export interface FileUploadProps {
@@ -32,11 +36,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   // arquivo selecionado pelo usuário
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
 
   // carregar último arquivo
   const [tempUrl, setTempUrl] = useState<string | null>(null);
   const [uploadedInfo, setUploadedInfo] = useState<{
     name: string;
+    key: string;
     size: number;
     uploadedAt: string;
   } | null>(null);
@@ -46,18 +54,28 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     let active = true;
     getLatestArchive().then((latest) => {
       if (!active || !latest) return;
-      
+
       let localDateStr = '';
       if (latest.uploadedAt) {
         const parsedDate = new Date(latest.uploadedAt);
         localDateStr = !isNaN(parsedDate.getTime())
-          ? parsedDate.toLocaleString()
+          ? parsedDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
           : latest.uploadedAt;
       }
 
+      const displayName = (latest as any).originalName || latest.name;
+      const fileKey = (latest as any).key || latest.name;
+
       setTempUrl(latest.url);
       setUploadedInfo({
-        name: latest.name,
+        name: displayName,
+        key: fileKey,
         size: latest.size,
         uploadedAt: localDateStr,
       });
@@ -71,38 +89,84 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   async function handleEnviar() {
     if (!selectedFile) return;
 
-    if (onUploadClick) {
-      const res = await onUploadClick(selectedFile);
-      if (!res) return; // Se falhou o upload, não exibe nada falso
+    setIsUploading(true);
+    setErrorMessage(null);
 
-      const now = new Date().toLocaleString('pt-BR');
-      let finalUrl = '';
-      let infoName = selectedFile.name;
-      let infoSize = selectedFile.size;
+    try {
+      if (onUploadClick) {
+        const res = await onUploadClick(selectedFile);
+        if (!res) {
+          setErrorMessage('Falha ao realizar o upload. Verifique o tamanho do arquivo (máx 120MB) ou sua conexão.');
+          setIsUploading(false);
+          return;
+        }
 
-      if (typeof res === 'string') {
-        finalUrl = res;
-      } else {
-        finalUrl = res.url;
-        infoName = res.name || selectedFile.name;
-        infoSize = res.size ?? selectedFile.size;
+        const now = new Date().toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        let finalUrl = '';
+        let infoName = selectedFile.name;
+        let fileKey = selectedFile.name;
+        let infoSize = selectedFile.size;
+
+        if (typeof res === 'string') {
+          finalUrl = res;
+        } else {
+          finalUrl = res.url;
+          infoName = (res as any).originalName || res.name || selectedFile.name;
+          fileKey = (res as any).key || res.name || selectedFile.name;
+          infoSize = res.size ?? selectedFile.size;
+        }
+
+        let dateFromBackend = '';
+        if (typeof res !== 'string' && res && res.uploadedAt) {
+          const parsed = new Date(res.uploadedAt);
+          dateFromBackend = !isNaN(parsed.getTime())
+            ? parsed.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : res.uploadedAt;
+        }
+
+        const info = {
+          name: infoName,
+          key: fileKey,
+          size: infoSize,
+          uploadedAt: dateFromBackend || now,
+        };
+
+        setUploadedInfo(info);
+        setTempUrl(finalUrl);
+        setSelectedFile(null);
+        setUploadSuccessMsg(`Arquivo "${infoName}" enviado com sucesso!`);
+        setTimeout(() => setUploadSuccessMsg(null), 4000);
       }
-
-      const info = {
-        name: infoName,
-        size: infoSize,
-        uploadedAt: now,
-      };
-
-      setUploadedInfo(info);
-      setTempUrl(finalUrl);
+    } catch {
+      setErrorMessage('Ocorreu um erro inesperado ao enviar o arquivo.');
+    } finally {
+      setIsUploading(false);
     }
   }
 
   // captura o arquivo quando o usuário seleciona pelo input
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
+    if (file && file.size > 120 * 1024 * 1024) {
+      setErrorMessage('O arquivo selecionado excede o limite máximo permitido de 120MB.');
+      setSelectedFile(null);
+      e.target.value = '';
+      return;
+    }
     setSelectedFile(file);
+    setErrorMessage(null);
   }
 
   return (
@@ -115,6 +179,37 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         gap: '20px',
       }}
     >
+      {/* Alerta animado de sucesso no upload */}
+      <Slide in={Boolean(uploadSuccessMsg)} direction="right" mountOnEnter unmountOnExit timeout={400}>
+        <Stack
+          sx={{
+            width: 'auto',
+            maxWidth: '600px',
+            position: 'fixed',
+            top: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            left: 16,
+            zIndex: 100,
+          }}
+          spacing={2}
+        >
+          <Alert
+            severity="success"
+            sx={{
+              backgroundColor: '#2e3cb4',
+              color: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              '& .MuiAlert-icon': {
+                color: '#ffffff',
+              },
+            }}
+          >
+            {uploadSuccessMsg}
+          </Alert>
+        </Stack>
+      </Slide>
       {/* Linha com os controles de seleção e envio */}
       <div
         style={{
@@ -161,6 +256,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           {buttonText}
           <input
             type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.svg,.tif,.tiff,.xlsx,.xls,.csv,.doc,.docx,.ppt,.pptx,.zip"
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
@@ -195,26 +291,46 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           )}
         </div>
 
-        {/* botão de envio — fica desabilitado até ter um arquivo selecionado */}
+        {/* botão de envio — fica desabilitado até ter um arquivo selecionado ou durante upload */}
         <button
           type="button"
           onClick={handleEnviar}
-          disabled={!selectedFile}
+          disabled={!selectedFile || isUploading}
           style={{
-            backgroundColor: selectedFile ? '#2e3cb4' : '#d0d5dd',
+            backgroundColor: selectedFile && !isUploading ? '#2e3cb4' : '#d0d5dd',
             color: '#ffffff',
             border: 'none',
             fontSize: '14px',
             fontWeight: 600,
             padding: '10px 20px',
             borderRadius: '8px',
-            cursor: selectedFile ? 'pointer' : 'not-allowed',
+            cursor: selectedFile && !isUploading ? 'pointer' : 'not-allowed',
             whiteSpace: 'nowrap',
           }}
         >
-          {uploadButtonText}
+          {isUploading ? 'Enviando...' : uploadButtonText}
         </button>
       </div>
+
+      {/* Alerta de Erro Visual */}
+      {errorMessage && (
+        <div
+          style={{
+            width: '100%',
+            backgroundColor: '#fef2f2',
+            color: '#991b1b',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: 500,
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
 
       {/* bloco do último arquivo — renderizado abaixo dos controles */}
       {tempUrl && (
@@ -260,7 +376,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </span>
             {uploadedInfo ? (
               <>
-                <span style={{ fontWeight: 600 }}>{uploadedInfo.name}</span>
+                <span style={{ fontWeight: 600 }}>
+                  {uploadedInfo.name}
+                </span>
                 <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
                 <span>{formatFileSize(uploadedInfo.size)}</span>
                 <span style={{ width: '1px', height: '14px', backgroundColor: '#eaecf0', display: 'inline-block' }} />
@@ -271,10 +389,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </div>
 
-          {/* botão que abre o arquivo numa nova aba */}
+          {/* botão que abre o arquivo em uma nova aba buscando um link renovado na hora */}
           <button
             type="button"
-            onClick={() => window.open(tempUrl, '_blank')}
+            onClick={async () => {
+              const targetKey = uploadedInfo?.key || uploadedInfo?.name;
+              if (targetKey) {
+                const refreshedUrl = await getArchiveUrlByName(targetKey);
+                if (refreshedUrl) {
+                  window.open(refreshedUrl, '_blank');
+                  return;
+                }
+              }
+              if (tempUrl) {
+                window.open(tempUrl, '_blank');
+              }
+            }}
             style={{
               backgroundColor: '#2e3cb4',
               color: '#ffffff',
