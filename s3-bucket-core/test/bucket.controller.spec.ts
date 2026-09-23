@@ -56,4 +56,23 @@ describe('bucket.controller - cleanExpiredBucketFiles', () => {
     expect(s3Mock.commandCalls(DeleteObjectsCommand).length).toBe(1);
     expect(removerArquivosPorIds).toHaveBeenCalledWith([10]);
   });
+
+  it('não remove o registro do banco se a exclusão no S3 falhar', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => { });
+    const { buscarArquivosExpirados, removerArquivosPorIds } = jest.requireMock('../src/services/archive.service');
+    buscarArquivosExpirados.mockResolvedValueOnce([
+      {
+        id_ficha: 10,
+        uploaded_by: 'autor@empresa.com',
+        filename: 'relatorio-antigo.pdf',
+        s3_key: 'relatorio-antigo.pdf',
+        file_size: 500,
+      },
+    ]);
+
+    s3Mock.on(DeleteObjectsCommand).rejects(new Error('falha ao apagar no S3'));
+
+    await expect(cleanExpiredBucketFiles()).rejects.toThrow('falha ao apagar no S3');
+    expect(removerArquivosPorIds).not.toHaveBeenCalled();
+  });
 });

@@ -41,6 +41,24 @@ describe('AuthService', () => {
     );
   });
 
+  it('rejeita o callback se o state PKCE expirou', async () => {
+    jest.useFakeTimers();
+    try {
+      const loginUrl = authService.generateLoginUrl();
+      const urlParams = new URLSearchParams(loginUrl.split('?')[1]);
+      const state = urlParams.get('state')!;
+
+      jest.advanceTimersByTime(10 * 60 * 1000);
+
+      await expect(authService.handleCallback('code-123', state)).rejects.toThrow(
+        'State inválido ou expirado'
+      );
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('processa o callback do PKCE com sucesso e retorna o JWT e dados do usuário', async () => {
     const loginUrl = authService.generateLoginUrl();
     const urlParams = new URLSearchParams(loginUrl.split('?')[1]);
