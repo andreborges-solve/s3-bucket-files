@@ -91,6 +91,25 @@ describe('archive.controller', () => {
       expect(jsonResponse.name).toBeDefined();
     });
 
+    it('não envia o arquivo ao S3 se a consulta de duplicidade no banco falhar', async () => {
+      jest.spyOn(console, 'error').mockImplementationOnce(() => { });
+      req.file = {
+        originalname: 'teste.pdf',
+        mimetype: 'application/pdf',
+        buffer: Buffer.from('conteudo'),
+        size: 500,
+      } as any;
+
+      const { buscarArquivosPorNomeBase } = jest.requireMock('../src/services/archive.service');
+      buscarArquivosPorNomeBase.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+      await postArchive(req as AuthenticatedRequest, res as Response);
+
+      expect(s3Mock.commandCalls(PutObjectCommand).length).toBe(0);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ message: 'Erro ao enviar arquivo para o storage' });
+    });
+
     it('retorna 500 se o upload no S3 der erro', async () => {
       jest.spyOn(console, 'error').mockImplementationOnce(() => { });
       req.file = {

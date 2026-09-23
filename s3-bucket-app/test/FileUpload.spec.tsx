@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FileUpload } from '../src/components/FileUpload';
 import * as archiveService from '../src/services/archive.service';
@@ -37,6 +37,21 @@ describe('FileUpload', () => {
     expect(await screen.findByText('final.pdf')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Visualizar' })).toBeInTheDocument();
     expect(await screen.findByText('Arquivo "final.pdf" enviado com sucesso!')).toBeInTheDocument();
+  });
+
+  it('bloqueia a seleção de arquivo maior que 120MB e não envia', () => {
+    const onUploadClick = vi.fn();
+    render(<FileUpload onUploadClick={onUploadClick} uploadButtonText="Enviar" />);
+
+    const file = new File(['x'], 'grande.pdf', { type: 'application/pdf' });
+    Object.defineProperty(file, 'size', { value: 120 * 1024 * 1024 + 1 });
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.getByText('O arquivo selecionado excede o limite máximo permitido de 120MB.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar' })).toBeDisabled();
+    expect(onUploadClick).not.toHaveBeenCalled();
   });
 
   it('exibe mensagem de erro quando o backend recusa o upload', async () => {
